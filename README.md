@@ -1,95 +1,175 @@
 # pi-ai-hat
 
-# Hailo NPU Microservice Architecture for Raspberry Pi 5
+**Hailo NPU Microservice Architecture for Raspberry Pi 5**
 
-A high-performance, fully decoupled REST API and Web UI for real-time AI inference using the **Raspberry Pi 5** and the **Hailo AI Kit**.
+A high-performance, fully decoupled REST API and Web UI for real-time AI inference on the **Raspberry Pi 5** with the **Hailo AI Kit** (AI HAT / AI HAT+).
+
+The project was born out of a collaboration around running custom edge-AI models for in-field agricultural diagnosis (e.g. grapevine leaf disease detection). After hitting the limits of the IMX500 sensor's converter for non-MobileNet architectures, we moved the inference workload onto the Hailo-8L accelerator, which is far more permissive about the operators it accepts. The result is a small, reusable serving stack that any device on the local network can hit from a browser — point a webcam at the subject, snap a frame, get bounding boxes back from the NPU.
+
+---
 
 ## Why This Architecture?
-The official `hailo_platform` Python bindings must communicate with the physical PCIe kernel drivers (`/dev/hailo0`). When attempting to build modern web APIs (like FastAPI) inside isolated Python virtual environments, system path bleeding often causes the hardware drivers to crash or fail to initialize.
 
-**The Solution:** A decoupled microservice loop.
-1. **The Hardware Daemon (`hailo_daemon.py`):** Runs natively on the global system Python loop, binding directly to the PCIe chip and listening internally on port 8001.
-2. **The FastAPI Server (`server.py`):** Runs safely inside a modern, isolated Python virtual environment (e.g., Python 3.13), listening on port 8000 and proxying image bytes to the daemon.
-3. **The Web UI (`index.html`):** Served directly by FastAPI, allowing any device on the network to select a camera, snap a photo, and render NPU bounding boxes natively in the browser.
+The official `hailo_platform` Python bindings need to talk directly to the PCIe kernel driver at `/dev/hailo0`. When you try to import them from inside a modern Python virtual environment (FastAPI, uv, Python 3.13, etc.), path bleeding between the venv and the system Python regularly causes the driver layer to crash or fail to initialize.
+
+**The solution** is a decoupled microservice loop:
+
+1. **Hardware Daemon (`hailo_daemon.py`)** — runs on the *global* system Python, binds directly to the PCIe chip, listens locally on port `8001`.
+2. **FastAPI Server (`server.py`)** — runs inside an isolated venv (Python 3.13 + `uv`), listens on port `8000`, proxies image bytes to the daemon.
+3. **Web UI (`index.html`)** — served by FastAPI; any device on the LAN can pick a camera, snap a photo, and render the NPU bounding boxes in the browser.
+
+```
+ Browser ──HTTP──▶ server.py (venv, :8000) ──HTTP──▶ hailo_daemon.py (system py, :8001) ──▶ /dev/hailo0
+```
+
+---
+
+## Hardware Requirements
+
+- Raspberry Pi 5
+- Raspberry Pi AI Kit (Hailo-8L) **or** AI HAT+ (Hailo-8 / Hailo-10H)
+- A USB webcam, CSI camera, or any device that exposes itself as a webcam to the browser
+- Network connection to the Pi (Ethernet or Wi-Fi)
 
 ---
 
 ## Installation & Setup (Fresh Raspberry Pi OS)
 
-### 1. Install Kernel Headers and the Hailo Driver
-On modern Raspberry Pi OS releases (like Debian Trixie), the kernel headers and DKMS modules must match your specific architecture.
+These steps assume a clean install of Raspberry Pi OS (Bookworm or Trixie, 64-bit) on a Pi 5.
+
+### 1. Install kernel headers and the Hailo driver
+
+On modern Raspberry Pi OS releases, the kernel headers and DKMS modules must match the Pi 5's architecture.
 
 ```bash
-# Update system repositories
 sudo apt update
+sudo apt full-upgrade -y
 
-# Install Pi 5 specific kernel headers
-sudo apt install linux-headers-rpi-2712 -y
-# (Fallback: sudo apt install linux-headers-$(uname -r) -y)
+# Pi 5-specific kernel headers
+sudo apt install -y linux-headers-rpi-2712
+# Fallback if the package above is unavailable:
+# sudo apt install -y linux-headers-$(uname -r)
 
-# Install DKMS and the Hailo Master Driver Package
-sudo apt install dkms hailo-all -y
-# Note: If using the newer AI HAT+ 2 (Hailo-10H), use `hailo-h10-all` instead.
+# DKMS + Hailo master driver package
+sudo apt install -y dkms hailo-all
+# If you have the AI HAT+ 2 (Hailo-10H) instead, use:
+# sudo apt install -y hailo-h10-all
 
-2. Verify the PCIe Hardware Node
-Once installed, load the module into the kernel and verify the physical device node exists.
+sudo reboot
+```
 
-Bash
+### 2. Verify the PCIe hardware node
+
+After the reboot, load the kernel module and confirm the device node exists.
+
+```bash
 sudo modprobe hailo_pci
 ls /dev/hailo*
-(You should see /dev/hailo0 output in the terminal. If you do, your hardware is ready!)
+# Expected output: /dev/hailo0
+```
 
-3. Clone the Repository & Fetch the Model
-Clone this repository and download a pre-compiled YOLOv8 nano .hef model from the official AWS S3 storage buckets.
+If you do not see `/dev/hailo0`, recheck the HAT seating on the PCIe connector and confirm PCIe is enabled in `/boot/firmware/config.txt` (`dtparam=pciex1`).
 
-Bash
-git clone <YOUR_REPO_URL>
-cd <YOUR_REPO_NAME>
+### 3. Clone the repository and fetch a model
 
-# Download the compiled Hailo-8L model
-wget [https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.15.0/hailo8l/yolov8n.hef](https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.15.0/hailo8l/yolov8n.hef)
-4. Create the Web Virtual Environment
-We use uv (a blazing fast Python package manager) to build the isolated web server environment.
+```bash
+git clone https://github.com/<YOUR_USER>/pi-ai-hat.git
+cd pi-ai-hat
 
-Bash
-# Install uv globally if you haven't yet
-curl -LsSf [https://astral.sh/uv/install.sh](https://astral.sh/uv/install.sh) | sh
+# Pre-compiled YOLOv8 nano model for Hailo-8L
+wget https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.15.0/hailo8l/yolov8n.hef
+```
 
-# Create a clean virtual environment and activate it
-uv venv web_env
+If you are using the full Hailo-8 (not the 8L), swap `hailo8l` for `hailo8` in the URL.
+
+### 4. Create the web virtual environment
+
+We use [`uv`](https://github.com/astral-sh/uv) to build the isolated FastAPI environment — it's much faster than `pip` and keeps the venv cleanly separated from the system Python the Hailo driver depends on.
+
+Python dependencies for the web layer are pinned in [`requirements.txt`](requirements.txt).
+
+```bash
+# Install uv globally if you don't have it yet
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env   # or restart your shell
+
+# Create the venv only if it doesn't already exist, then install deps
+if [ ! -d web_env ]; then
+    uv venv web_env
+fi
 source web_env/bin/activate
+uv pip install -r requirements.txt
+deactivate
+```
 
-# Install the required web packages
-uv pip install fastapi uvicorn httpx python-multipart
-Running the System
-Because this is a decoupled architecture, you need to run two separate terminal instances (or use a tool like tmux / screen).
+Re-running these commands is safe: `uv venv` is skipped when `web_env/` already exists, and `uv pip install -r requirements.txt` is idempotent — it will only install what's missing or out of date.
 
-Terminal 1: Start the Hardware Daemon
-This script must be run outside of any virtual environments using the global Python binary and sudo (to grant direct read/write access to the /dev/hailo0 block).
+---
 
-Bash
-cd <YOUR_REPO_NAME>
+## Running the System
+
+Because the architecture is decoupled, you need **two terminal sessions** (or use `tmux` / `screen`).
+
+### Terminal 1 — Hardware Daemon
+
+Run this **outside** of any virtual environment, using the system Python, with `sudo` so it can open `/dev/hailo0`.
+
+```bash
+cd pi-ai-hat
 sudo /usr/bin/python3 hailo_daemon.py
-(Wait until it prints: Hailo Core Daemon listening locally on port 8001...)
+```
 
-Terminal 2: Start the Web Server
-Open a second terminal, enter your isolated web environment, and boot up FastAPI.
+Wait until you see:
 
-Bash
-cd <YOUR_REPO_NAME>
+```
+Hailo Core Daemon listening locally on port 8001...
+```
+
+### Terminal 2 — Web Server
+
+```bash
+cd pi-ai-hat
 source web_env/bin/activate
 python3 server.py
-Using the Interface
-Once both services are running, step away from the Pi and open a web browser on any computer connected to the same local network.
+```
 
-Navigate to:
+FastAPI will start on port `8000`.
 
-Plaintext
+---
+
+## Using the Interface
+
+From any computer or phone on the same local network, open a browser and go to:
+
+```
 http://<YOUR_RASPBERRY_PI_IP>:8000/
-Select your desired physical webcam or virtual camera from the dropdown list.
+```
 
-Point the camera at your subject.
+Then:
 
-Click Snap & Analyze.
+1. Select your webcam (physical or virtual) from the dropdown.
+2. Point the camera at the subject.
+3. Click **Snap & Analyze**.
 
-The frontend will grab the frame, proxy it through the API, execute it natively on the Hailo-8L cores, and draw the bounding boxes over your snapshot
+The frontend grabs the frame, proxies it through the FastAPI server to the daemon, runs inference natively on the Hailo cores, and draws the bounding boxes over the snapshot.
+
+---
+
+## Swapping in a Custom Model
+
+To use your own compiled `.hef`:
+
+1. Drop the file next to `hailo_daemon.py`.
+2. Update the model path (and, if your model uses a different head, the NMS / post-processing logic) inside `hailo_daemon.py`.
+3. Restart the daemon.
+
+The web layer (`server.py`, `index.html`) is model-agnostic — it just forwards image bytes and renders whatever boxes the daemon returns.
+
+---
+
+## Troubleshooting
+
+- **`/dev/hailo0` does not appear** — make sure the HAT is seated, PCIe is enabled in `config.txt`, and `dkms status` shows the `hailort` module as installed.
+- **`hailo_daemon.py` crashes on import** — you are almost certainly running it inside the venv. Deactivate and call `/usr/bin/python3` explicitly.
+- **`server.py` cannot reach the daemon** — confirm the daemon is up on port `8001` (`ss -tlnp | grep 8001`) and that no firewall rule blocks loopback.
+- **Browser shows no cameras** — most browsers only expose `getUserMedia` over `https://` or `http://localhost`. From another device, use Chrome with the Pi's IP added to `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, or front the server with a reverse proxy that terminates TLS.
