@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hailo Photo Snap UI</title>
+    <style>
+        body { font-family: sans-serif; background: #111; color: #fff; text-align: center; }
+        .controls { margin-top: 20px; }
+        select { padding: 10px; font-size: 16px; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; margin-bottom: 20px; cursor: pointer; max-width: 400px; }
+        .panels { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .panel { display: flex; flex-direction: column; align-items: center; }
+        video, canvas { border-radius: 8px; border: 2px solid #333; background: #000; transform: scaleX(-1); }
+        button { margin-top: 20px; padding: 15px 30px; font-size: 18px; cursor: pointer; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; transition: 0.2s; }
+        button:active { transform: scale(0.95); }
+        button:disabled { background: #555; cursor: not-allowed; }
+        #statusText { margin-top: 15px; font-size: 16px; color: #aaa; }
+    </style>
+</head>
+<body>
+
+    <h2>📷 Hailo NPU Snapshot Analysis</h2>
+    
+    <div class="controls">
+        <label for="cameraSelect"><strong>Select Camera: </strong></label>
+        <select id="cameraSelect">
+            <option value="">Loading cameras...</option>
+        </select>
+    </div>
+
+    <div class="panels">
+        <div class="panel">
+            <h3>Live Camera</h3>
+            <video id="webcam" width="640" height="480" autoplay playsinline></video>
+        </div>
+
+        <div class="panel">
+            <h3>Analyzed Snapshot</h3>
+            <canvas id="snapshot" width="640" height="480"></canvas>
+        </div>
+    </div>
+    
+    <button id="snapBtn">📸 Snap & Analyze</button>
+    <p id="statusText">Initializing camera...</p>
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('snapshot');
+        const ctx = canvas.getContext('2d');
+        const snapBtn = document.getElementById('snapBtn');
+        const statusText = document.getElementById('statusText');
+        const cameraSelect = document.getElementById('cameraSelect');
+        
+        let currentStream = null;
+
+        async function startCamera(deviceId = null) {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: {
+                    width: 640, 
+                    height: 480,
+                    ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+                }
+            };
+
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = currentStream;
+                statusText.innerText = "Camera ready. Point and snap!";
+
+                if (cameraSelect.options.length <= 1) {
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    const videoInputs = devices.filter(device => device.kind === 'videoinput');
+                    
+                    cameraSelect.innerHTML = ''; 
+                    
+                    videoInputs.forEach((device, index) => {
+                        const option = document.createElement('option');
+                        option.value = device.deviceId;
+                        option.text = device.label || `Camera ${index + 1}`;
+                        cameraSelect.appendChild(option);
+                    });
+                }
+            } catch (err) {
+                statusText.innerText = "Webcam error: " + err;
+            }
+        }
+
+        cameraSelect.addEventListener('change', () => {
+            statusText.innerText = "Switching cameras...";
+            startCamera(cameraSelect.value);
+        });
+
+        startCamera();
+
+        snapBtn.addEventListener('click', () => {
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            statusText.innerText = "Analyzing frame on Hailo NPU...";
+            snapBtn.disabled = true;
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('file', blob, 'snap.jpg');
+
+                try {
+                    const start = Date.now();
+                    // Uses a relative URL since FastAPI is serving this page
+                    const response = await fetch('/process-frame', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    const ms = Date.now() - start;
+                    
+                    if (data.status === 'success') {
+                        statusText.innerText = `Inference complete in ${ms}ms`;
+                        
+                        data.detections.forEach(det => {
+                            const [xmin, ymin, xmax, ymax] = det.box;
+                            
+                            const scaleX = canvas.width / 640;
+                            const scaleY = canvas.height / 640;
+                            
+                            const finalX = xmin * scaleX;
+                            const finalY = ymin * scaleY;
+                            const finalWidth = (xmax - xmin) * scaleX;
+                            const finalHeight = (ymax - ymin) * scaleY;
+
+                            ctx.strokeStyle = '#00ff88';
+                            ctx.lineWidth = 3;
+                            ctx.strokeRect(finalX, finalY, finalWidth, finalHeight);
+
+                            ctx.fillStyle = '#00ff88';
+                            ctx.font = '18px sans-serif';
+                            ctx.fillText(`${det.class} (${det.confidence})`, finalX, finalY - 8);
+                        });
+                    } else {
+                        statusText.innerText = "Error: " + data.message;
+                    }
+
+                } catch (error) {
+                    console.error("Network Error:", error);
+                    statusText.innerText = "Network Error communicating with server.";
+                } finally {
+                    snapBtn.disabled = false;
+                }
+                
+            }, 'image/jpeg', 0.9);
+        });
+    </script>
+</body>
+</html>
