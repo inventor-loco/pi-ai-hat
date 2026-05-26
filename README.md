@@ -165,6 +165,8 @@ To use your own compiled `.hef`:
 
 The web layer (`server.py`, `index.html`) is model-agnostic — it just forwards image bytes and renders whatever boxes the daemon returns.
 
+**Training a model from scratch?** See [docs/model-export.md](docs/model-export.md) for the full pipeline: dataset layout, YOLOv8 fine-tuning, ONNX export, and `hailomz` compilation to a Hailo-8L `.hef`.
+
 ---
 
 ## Troubleshooting

@@ -131,10 +131,10 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked (e
 - **Done:** _(fill in commit hash)_
 
 ### 5.2 Document the custom-model export pipeline
-- **Status:** `[ ]`
+- **Status:** `[x]` — 2026-05-27
 - **Why:** Getting from PyTorch → ONNX → Hailo `.hef` is the hard part of this whole project. There's institutional knowledge in the email thread that should live in the repo.
-- **How:** Add `docs/model-export.md` covering: required ONNX opset, fixed batch=1 export, `do_constant_folding=True`, Hailo Dataflow Compiler version we're targeting, sample `hailo parser onnx ...` / `hailo compiler ...` commands, and which architectures we've confirmed compile cleanly (MobileNetV2/V3, EfficientNet-Lite, YOLOv8) vs. those that don't (vanilla `timm` MobileViT).
-- **Done:** _(fill in commit hash)_
+- **How:** Add `docs/model-export.md` covering: required ONNX opset, fixed-shape export, `hailomz` compile command, calibration, drop-in to the daemon.
+- **Done:** First pass landed in [docs/model-export.md](docs/model-export.md), linked from the README "Swapping in a Custom Model" section. Follow-ups once we actually compile Patrícia's grapevine model end-to-end: add the real `custom_yolov8n.yaml` to the repo, capture mAP before/after INT8 quantisation, and document any errors hit during `hailomz compile` so future runs don't repeat them.
 
 ---
 
@@ -152,6 +152,13 @@ One entry per working session. Newest at the top. Keep it short: what you touche
 - Notes / blockers: <anything the next person needs to know>
 - Next: <what you'd pick up tomorrow>
 ```
+
+### 2026-05-27 — model-export guide
+- Touched: `docs/model-export.md` (new), `README.md` (link added in "Swapping in a Custom Model"), `TODO.md` (5.2 closed)
+- Tasks moved: 5.2 → done
+- Commits: _(fill in)_
+- Notes: Guide covers dataset layout → YOLOv8 fine-tune → ONNX export at opset 11 → `hailomz compile --hw-arch hailo8l` → drop-in to the daemon. Includes a sanity-check checklist and notes on the three most common `hailomz` failures. Cross-links to TODO 1.1 / 1.2 since the "edit `TARGET_MODEL` and `CLASS_NAMES` by hand" steps will go away once those land.
+- Next: 1.1 (configurable model path), so the model-export guide's "edit line 10" step becomes a CLI argument instead.
 
 ### 2026-05-27 — initial TODO drafted
 - Touched: `TODO.md` (new), `README.md`, `requirements.txt`
