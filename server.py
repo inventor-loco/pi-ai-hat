@@ -15,8 +15,13 @@ app.add_middleware(
 
 @app.get("/")
 async def serve_index():
-    # Serves the frontend UI directly to anyone who visits the Pi's IP address
+    # Serves the captive portal landing page
     return FileResponse("index.html")
+
+@app.get("/app.html")
+async def serve_app():
+    # Serves the actual AI camera app
+    return FileResponse("app.html")
 
 @app.get("/models")
 async def list_models():
@@ -53,7 +58,7 @@ async def process_frame(file: UploadFile = File(...), model: str = Form(None)):
 @app.get("/{catchall:path}")
 async def catch_all_route(catchall: str, request: Request):
     # Captive portals ping various URLs to check connectivity. 
-    # Redirecting them to the root forces the "Sign in to network" screen to load our app.
+    # Redirecting them to the root serves the captive portal landing page.
     return RedirectResponse(url="/")
 
 
