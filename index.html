@@ -54,6 +54,12 @@
         let currentStream = null;
 
         async function startCamera(deviceId = null) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                statusText.innerHTML = '<span style="color: #ff5555;">⚠️ <b>Camera Blocked!</b></span><br><br>You are viewing this in the Wi-Fi login popup, which restricts camera access.<br><br><b>Android:</b> Tap the 3 dots (⋮) in the top right and select "Open in Browser" or "Use this network as is", then open Chrome and go to <b>https://10.42.0.1</b>.<br><br><b>iOS:</b> Tap "Cancel" (top right), select "Use Without Internet", then open Safari and go to <b>https://10.42.0.1</b>';
+                cameraSelect.innerHTML = '<option value="">Camera Unavailable</option>';
+                return;
+            }
+
             if (currentStream) {
                 currentStream.getTracks().forEach(track => track.stop());
             }
