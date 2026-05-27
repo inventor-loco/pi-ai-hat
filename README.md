@@ -1,10 +1,10 @@
-# pi-ai-hat
+## Hailo NPU Microservice Architecture for Raspberry Pi 5
 
-**Hailo NPU Microservice Architecture for Raspberry Pi 5**
+A REST API and Web UI for real-time AI inference on the **Raspberry Pi 5** with the **Hailo AI Kit** (AI HAT / AI HAT+).
 
-A high-performance, fully decoupled REST API and Web UI for real-time AI inference on the **Raspberry Pi 5** with the **Hailo AI Kit** (AI HAT / AI HAT+).
+The project is a collaboration between IDeTIC, ULPGC, Spain, and IT Aveiro, UniAve, Portugal.
 
-The project was born out of a collaboration around running custom edge-AI models for in-field agricultural diagnosis (e.g. grapevine leaf disease detection). After hitting the limits of the IMX500 sensor's converter for non-MobileNet architectures, we moved the inference workload onto the Hailo-8L accelerator, which is far more permissive about the operators it accepts. The result is a small, reusable serving stack that any device on the local network can hit from a browser — point a webcam at the subject, snap a frame, get bounding boxes back from the NPU.
+The idea is to have hardware running custom edge-AI models for in-field agricultural diagnosis (e.g. grapevine leaf disease detection). The inference workload is done by the Hailo-8L accelerator, which is fast and flexible. The result is a small, reusable serving stack that any device on the local network can hit from a browser. A webcam or phone can capture the subject, snap a frame, and get the result from the NPU.
 
 ---
 
