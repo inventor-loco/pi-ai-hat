@@ -139,6 +139,7 @@ FastAPI will start on port `8000`.
 
 ## Using the Interface
 
+### Web UI
 From any computer or phone on the same local network, open a browser and go to:
 
 ```
@@ -152,6 +153,11 @@ Then:
 3. Click **Snap & Analyze**.
 
 The frontend grabs the frame, proxies it through the FastAPI server to the daemon, runs inference natively on the Hailo cores, and draws the bounding boxes over the snapshot.
+
+### Android Native App
+If you prefer a native mobile experience, the `android_client/` directory contains a fully functional Android application built in Kotlin. It uses the phone's native camera to take high-quality photos and sends them to the Hailo server for inference.
+
+See the **[Android Build Instructions](docs/android_build_instructions.md)** for details on how to build and deploy the APK to your phone.
 
 ---
 

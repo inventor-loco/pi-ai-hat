@@ -138,6 +138,22 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked (e
 
 ---
 
+## 6. Android Client (`android_client/`)
+
+### 6.1 Persist Server URL
+- **Status:** `[ ]`
+- **Why:** Typing `http://192.168.1.X:8000` every time the app opens is annoying.
+- **How:** Save the URL to `SharedPreferences` when a request succeeds, and load it on startup.
+- **Done:** _(fill in commit hash)_
+
+### 6.2 Handle device orientation
+- **Status:** `[ ]`
+- **Why:** Photos taken in portrait might be rotated incorrectly when converted to a Bitmap, causing the server boxes to mismatch or the image to look sideways.
+- **How:** Read EXIF data from the captured photo or normalize rotation before drawing bounding boxes.
+- **Done:** _(fill in commit hash)_
+
+---
+
 ## Session Log
 
 One entry per working session. Newest at the top. Keep it short: what you touched, what's next.
@@ -152,6 +168,13 @@ One entry per working session. Newest at the top. Keep it short: what you touche
 - Notes / blockers: <anything the next person needs to know>
 - Next: <what you'd pick up tomorrow>
 ```
+
+### 2026-05-27 — Android Client
+- Touched: `android_client/`, `docs/android_build_instructions.md`, `README.md`, `TODO.md`
+- Tasks moved: none — Android backlog seeded
+- Commits: _(fill in hash)_
+- Notes: Created a native Android client using Kotlin + OkHttp to interface with the server. Avoided CameraX by using standard `MediaStore.ACTION_IMAGE_CAPTURE`. App takes a picture, uploads to `/process-frame`, and draws the JSON response boxes onto the Bitmap. Added build instructions to the docs.
+- Next: 6.1 (Persist Server URL)
 
 ### 2026-05-27 — model-export guide
 - Touched: `docs/model-export.md` (new), `README.md` (link added in "Swapping in a Custom Model"), `TODO.md` (5.2 closed)
