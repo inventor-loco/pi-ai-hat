@@ -1,4 +1,5 @@
 import sys
+import os
 import numpy as np
 import cv2
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -6,16 +7,57 @@ import json
 
 from hailo_platform import VDevice, HEF, InferVStreams, InputVStreamParams, OutputVStreamParams, FormatType
 
-TARGET_MODEL = "yolov8n.hef"
-hef = HEF(TARGET_MODEL)
+# Global state
+current_model_name = None
+target_device = None
+hef = None
+network_group = None
 
-print("Initializing Hailo physical hardware device...")
-target_device = VDevice()
-network_group = target_device.configure(hef)[0]
+def load_model(model_name):
+    global current_model_name, target_device, hef, network_group
+    
+    models_dir = os.path.join(os.path.dirname(__file__), 'models')
+    model_path = os.path.join(models_dir, model_name)
+    
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Model file not found: {model_path}")
+        
+    print(f"Loading model {model_name} into hardware...")
+    
+    if target_device is not None:
+        target_device.release()
+        
+    hef = HEF(model_path)
+    target_device = VDevice()
+    network_group = target_device.configure(hef)[0]
+    current_model_name = model_name
+    print(f"Successfully loaded {model_name}")
+
+try:
+    # Try loading default model if present
+    load_model("yolov8n.hef")
+except Exception as e:
+    print(f"Note: Could not load default model yolov8n.hef ({e}). Waiting for client request.")
 
 class HailoInferenceHandler(BaseHTTPRequestHandler):
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
+        requested_model = self.headers.get('X-Model')
+        
+        # If no model specified in request, fallback to whatever is loaded, or default
+        if not requested_model:
+            requested_model = current_model_name if current_model_name else "yolov8n.hef"
+            
+        if requested_model != current_model_name:
+            try:
+                load_model(requested_model)
+            except Exception as e:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "message": f"Failed to load model: {str(e)}"}).encode('utf-8'))
+                return
+
+        content_length = int(self.headers.get('Content-Length', 0))
         raw_img_bytes = self.rfile.read(content_length)
         
         nparr = np.frombuffer(raw_img_bytes, np.uint8)
@@ -84,8 +126,9 @@ def run_daemon():
     try:
         httpd.serve_forever()
     finally:
-        print("\nReleasing Hailo hardware device control...")
-        target_device.release()
+        if target_device is not None:
+            print("\nReleasing Hailo hardware device control...")
+            target_device.release()
 
 if __name__ == '__main__':
     run_daemon()
