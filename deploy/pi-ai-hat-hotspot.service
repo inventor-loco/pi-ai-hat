@@ -1,0 +1,14 @@
+[Unit]
+Description=pi-ai-hat Wi-Fi Hotspot
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Reset autoconnect in case the user switched to client mode last session.
+ExecStart=/usr/bin/nmcli connection modify "Hailo AI Cam" connection.autoconnect yes
+ExecStart=/usr/bin/nmcli connection up "Hailo AI Cam"
+
+[Install]
+WantedBy=multi-user.target
