@@ -2,6 +2,9 @@ from fastapi import FastAPI, File, UploadFile, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 import httpx
+import subprocess
+import threading
+import socket
 
 app = FastAPI()
 
@@ -54,6 +57,67 @@ async def process_frame(file: UploadFile = File(...), model: str = Form(None)):
             return {"status": "error", "message": "Hailo daemon offline on port 8001."}
         except Exception as e:
             return {"status": "error", "message": f"Proxy crash: {str(e)}"}
+
+@app.get("/network-status")
+async def network_status():
+    hostname = socket.gethostname()
+    try:
+        result = subprocess.run(
+            ["nmcli", "-t", "-f", "NAME", "connection", "show", "--active"],
+            capture_output=True, text=True, timeout=5
+        )
+        hotspot_active = "Hailo AI Cam" in result.stdout
+        mode = "hotspot" if hotspot_active else "wifi"
+    except Exception:
+        mode = "unknown"
+    return {"mode": mode, "hostname": hostname}
+
+
+@app.post("/configure-wifi")
+async def configure_wifi(ssid: str = Form(...), password: str = Form(...)):
+    hostname = socket.gethostname()
+
+    # Remove any existing profile with the same name so re-configuration works cleanly.
+    subprocess.run(["nmcli", "connection", "delete", ssid], capture_output=True)
+
+    try:
+        subprocess.run([
+            "nmcli", "connection", "add",
+            "type", "wifi", "ifname", "wlan0",
+            "con-name", ssid, "ssid", ssid,
+            "wifi-sec.key-mgmt", "wpa-psk",
+            "wifi-sec.psk", password,
+            "autoconnect", "yes"
+        ], check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError:
+        return {"status": "error", "message": "Failed to add Wi-Fi connection — check the credentials and try again."}
+
+    def _switch():
+        import time
+        time.sleep(2)
+        subprocess.run(["nmcli", "connection", "modify", "Hailo AI Cam", "connection.autoconnect", "no"], capture_output=True)
+        subprocess.run(["nmcli", "connection", "down", "Hailo AI Cam"], capture_output=True)
+        subprocess.run(["nmcli", "connection", "up", ssid], capture_output=True)
+
+    threading.Thread(target=_switch, daemon=True).start()
+    return {
+        "status": "ok",
+        "message": f'Switching to "{ssid}". The Pi will leave the hotspot in ~2 seconds.',
+        "find_at": f"{hostname}.local"
+    }
+
+
+@app.post("/enable-hotspot")
+async def enable_hotspot():
+    def _switch():
+        import time
+        time.sleep(2)
+        subprocess.run(["nmcli", "connection", "modify", "Hailo AI Cam", "connection.autoconnect", "yes"], capture_output=True)
+        subprocess.run(["nmcli", "connection", "up", "Hailo AI Cam"], capture_output=True)
+
+    threading.Thread(target=_switch, daemon=True).start()
+    return {"status": "ok", "message": "Switching to hotspot mode. Connect to the 'Hailo AI Cam' Wi-Fi network."}
+
 
 @app.get("/{catchall:path}")
 async def catch_all_route(catchall: str, request: Request):

@@ -15,9 +15,103 @@
         button:active { transform: scale(0.95); }
         button:disabled { background: #555; cursor: not-allowed; }
         #statusText { margin-top: 15px; font-size: 16px; color: #aaa; }
+
+        /* --- Settings panel --- */
+        #hamburger {
+            position: fixed; top: 14px; right: 14px;
+            background: #222; border: 1px solid #555; color: #fff;
+            font-size: 20px; width: 42px; height: 42px;
+            border-radius: 8px; cursor: pointer; z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.15s;
+        }
+        #hamburger:hover { background: #333; }
+        #settingsOverlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.65); z-index: 200;
+            align-items: center; justify-content: center;
+        }
+        #settingsOverlay.open { display: flex; }
+        #settingsPanel {
+            background: #1c1c1c; border: 1px solid #444; border-radius: 12px;
+            padding: 28px 24px 24px; width: 340px; max-width: 92vw;
+            position: relative; text-align: left;
+        }
+        #settingsPanel h3 { margin: 0 0 18px; font-size: 17px; color: #fff; }
+        #closeSettings {
+            position: absolute; top: 10px; right: 12px;
+            background: none; border: none; color: #888; font-size: 22px;
+            cursor: pointer; line-height: 1; padding: 0;
+        }
+        #closeSettings:hover { color: #fff; }
+        .net-badge {
+            display: inline-block; padding: 3px 10px; border-radius: 20px;
+            font-size: 13px; font-weight: bold; margin-bottom: 18px;
+        }
+        .net-badge.hotspot { background: #1a3a1a; color: #00ff88; border: 1px solid #00aa55; }
+        .net-badge.wifi    { background: #1a2a3a; color: #55aaff; border: 1px solid #2266aa; }
+        .net-badge.unknown { background: #2a2a2a; color: #aaa;     border: 1px solid #555; }
+        #settingsPanel label { display: block; font-size: 13px; color: #aaa; margin-bottom: 4px; }
+        #settingsPanel input[type=text],
+        #settingsPanel input[type=password] {
+            width: 100%; box-sizing: border-box;
+            padding: 9px 10px; font-size: 14px;
+            background: #111; color: #fff; border: 1px solid #555;
+            border-radius: 6px; margin-bottom: 12px;
+        }
+        #settingsPanel .show-pw {
+            font-size: 12px; color: #888; cursor: pointer;
+            margin-top: -8px; margin-bottom: 14px; display: block; user-select: none;
+        }
+        #settingsPanel .action-btn {
+            width: 100%; padding: 10px; font-size: 15px; font-weight: bold;
+            border: none; border-radius: 7px; cursor: pointer; transition: opacity 0.15s;
+        }
+        #settingsPanel .action-btn:hover { opacity: 0.85; }
+        #wifiConnectBtn  { background: #00ff88; color: #000; }
+        #hotspotEnableBtn { background: #55aaff; color: #000; margin-top: 8px; }
+        #settingsMsg { margin-top: 14px; font-size: 13px; color: #aaa; line-height: 1.5; }
+        #settingsMsg .highlight { color: #00ff88; font-weight: bold; }
+        .divider { border: none; border-top: 1px solid #333; margin: 16px 0; }
     </style>
 </head>
 <body>
+
+    <button id="hamburger" title="Settings">&#9776;</button>
+
+    <div id="settingsOverlay">
+        <div id="settingsPanel">
+            <button id="closeSettings" title="Close">&times;</button>
+            <h3>&#9881; Network Settings</h3>
+
+            <div id="netBadge" class="net-badge unknown">Checking...</div>
+
+            <!-- Shown in hotspot mode -->
+            <div id="wifiSection">
+                <p style="font-size:13px;color:#aaa;margin:0 0 14px;">
+                    Connect the Pi to a Wi-Fi network to access the internet.
+                    You will be disconnected from the hotspot.
+                </p>
+                <label for="wifiSsid">Wi-Fi Network (SSID)</label>
+                <input type="text" id="wifiSsid" placeholder="MyNetwork" autocomplete="off" autocorrect="off" spellcheck="false">
+                <label for="wifiPassword">Password</label>
+                <input type="password" id="wifiPassword" placeholder="••••••••">
+                <span class="show-pw" id="showPw">&#128065; Show password</span>
+                <button class="action-btn" id="wifiConnectBtn">Connect to Wi-Fi</button>
+            </div>
+
+            <!-- Shown in wifi-client mode -->
+            <div id="hotspotSection" style="display:none;">
+                <p style="font-size:13px;color:#aaa;margin:0 0 14px;">
+                    The Pi is connected to a Wi-Fi network. Re-enable the hotspot
+                    to use the camera from a phone in the field.
+                </p>
+                <button class="action-btn" id="hotspotEnableBtn">Re-enable Hotspot</button>
+            </div>
+
+            <div id="settingsMsg"></div>
+        </div>
+    </div>
 
     <h2>📷 Hailo NPU Snapshot Analysis</h2>
     
@@ -189,6 +283,90 @@
                 }
                 
             }, 'image/jpeg', 0.9);
+        });
+        // --- Settings panel ---
+        const overlay      = document.getElementById('settingsOverlay');
+        const netBadge     = document.getElementById('netBadge');
+        const wifiSection  = document.getElementById('wifiSection');
+        const hotspotSection = document.getElementById('hotspotSection');
+        const settingsMsg  = document.getElementById('settingsMsg');
+
+        document.getElementById('hamburger').addEventListener('click', openSettings);
+        document.getElementById('closeSettings').addEventListener('click', () => overlay.classList.remove('open'));
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+        document.getElementById('showPw').addEventListener('click', () => {
+            const pw = document.getElementById('wifiPassword');
+            const showing = pw.type === 'text';
+            pw.type = showing ? 'password' : 'text';
+            document.getElementById('showPw').textContent = (showing ? '👁 Show' : '🙈 Hide') + ' password';
+        });
+
+        async function openSettings() {
+            overlay.classList.add('open');
+            settingsMsg.innerHTML = '';
+            netBadge.className = 'net-badge unknown';
+            netBadge.textContent = 'Checking…';
+            wifiSection.style.display  = 'none';
+            hotspotSection.style.display = 'none';
+
+            try {
+                const data = await fetch('/network-status').then(r => r.json());
+                if (data.mode === 'hotspot') {
+                    netBadge.className   = 'net-badge hotspot';
+                    netBadge.textContent = '📡 Hotspot active (Hailo AI Cam)';
+                    wifiSection.style.display = 'block';
+                } else if (data.mode === 'wifi') {
+                    netBadge.className   = 'net-badge wifi';
+                    netBadge.textContent = '🌐 Connected to Wi-Fi';
+                    hotspotSection.style.display = 'block';
+                } else {
+                    netBadge.textContent = '⚠ Status unknown';
+                }
+            } catch {
+                netBadge.textContent = '⚠ Could not reach server';
+            }
+        }
+
+        document.getElementById('wifiConnectBtn').addEventListener('click', async () => {
+            const ssid = document.getElementById('wifiSsid').value.trim();
+            const pw   = document.getElementById('wifiPassword').value;
+            if (!ssid) { settingsMsg.textContent = 'Please enter the network name (SSID).'; return; }
+
+            settingsMsg.innerHTML = 'Connecting…';
+            document.getElementById('wifiConnectBtn').disabled = true;
+
+            try {
+                const form = new FormData();
+                form.append('ssid', ssid);
+                form.append('password', pw);
+                const data = await fetch('/configure-wifi', { method: 'POST', body: form }).then(r => r.json());
+
+                if (data.status === 'ok') {
+                    settingsMsg.innerHTML =
+                        `${data.message}<br><br>` +
+                        `Find the Pi at <span class="highlight">${data.find_at}</span> ` +
+                        `after joining the same Wi-Fi network.`;
+                } else {
+                    settingsMsg.textContent = '✗ ' + data.message;
+                    document.getElementById('wifiConnectBtn').disabled = false;
+                }
+            } catch {
+                settingsMsg.textContent = 'Lost connection — the Pi may already be switching networks.';
+            }
+        });
+
+        document.getElementById('hotspotEnableBtn').addEventListener('click', async () => {
+            settingsMsg.innerHTML = 'Switching to hotspot mode…';
+            document.getElementById('hotspotEnableBtn').disabled = true;
+            try {
+                const data = await fetch('/enable-hotspot', { method: 'POST' }).then(r => r.json());
+                settingsMsg.innerHTML =
+                    `${data.message}<br><br>` +
+                    `Connect to <span class="highlight">Hailo AI Cam</span> Wi-Fi to continue.`;
+            } catch {
+                settingsMsg.textContent = 'Lost connection — the Pi may already be switching.';
+            }
         });
     </script>
 </body>

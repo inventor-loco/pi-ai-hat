@@ -1,0 +1,15 @@
+[Unit]
+Description=Hailo AI Inference Daemon
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/pi-ai-hat
+ExecStart=/usr/bin/python3 /opt/pi-ai-hat/hailo_daemon.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

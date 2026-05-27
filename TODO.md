@@ -86,6 +86,12 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked (e
 - **How:** Render `${cls} ${(conf * 100).toFixed(0)}%` above each box.
 - **Done:** _(fill in commit hash)_
 
+### 3.1b Network settings panel (hamburger menu)
+- **Status:** `[x]`
+- **Why:** Once the Pi is in hotspot mode there is no way for the user to get back to a normal Wi-Fi connection without SSH + scripts. A field user who needed to update firmware or credentials would be stuck.
+- **How:** Add a hamburger button (⁝) fixed to the top-right of `app.html`. Opens a modal that calls `GET /network-status` and shows the current mode. In hotspot mode: SSID + password form → `POST /configure-wifi` (nmcli adds the profile, background thread switches off the AP after 2 s). In Wi-Fi client mode: "Re-enable Hotspot" button → `POST /enable-hotspot`. Three new endpoints added to `server.py`.
+- **Done:** Hamburger panel, `/network-status`, `/configure-wifi`, `/enable-hotspot` all implemented. Pi hostname is returned in the connect response so the user knows where to find the device after the AP drops.
+
 ### 3.2 Continuous mode (vs. single-snap)
 - **Status:** `[ ]`
 - **Why:** Currently the user has to click for every frame. For field demos a 1–2 FPS live loop is more compelling.
@@ -109,22 +115,22 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked (e
 - **Done:** _(fill in commit hash)_
 
 ### 4.2 Systemd units for daemon + server
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Why:** Two-terminal manual startup is fine for development, painful in the field.
 - **How:** Add `deploy/hailo-daemon.service` and `deploy/pi-ai-hat-web.service`. The daemon unit runs `/usr/bin/python3 /opt/pi-ai-hat/hailo_daemon.py` as root; the web unit runs `web_env/bin/python server.py` as the `pi` user and has `Requires=hailo-daemon.service`. Document the install (`systemctl enable --now ...`) in the README.
-- **Done:** _(fill in commit hash)_
+- **Done:** `deploy/hailo-daemon.service` and `deploy/pi-ai-hat-web.service` added; `install.sh` writes them to `/etc/systemd/system/` and enables them.
 
 ### 4.3 One-shot install script
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Why:** The README install is ~6 steps. A single `./install.sh` that runs them in order (idempotently) is what Patrícia and other non-systems folks will actually use.
 - **How:** Wrap sections 1–4 of the README into `install.sh` with `set -euo pipefail`. Use `command -v uv` checks so re-runs are safe. Do **not** auto-`sudo` — print the command if root is needed.
-- **Done:** _(fill in commit hash)_
+- **Done:** `install.sh` created. Covers: apt deps, venv creation, pip install, SSL cert generation, hotspot setup, systemd unit install + enable. Idempotent (skips venv/cert if already present).
 
 ### 4.4 Zero-to-Hero configuration script
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Why:** To make deploying new Pi units totally seamless for the field, we need a script that configures everything from zero.
-- **How:** Expand the install scripts (or create a new `setup_field_pi.sh`) to automatically run the `setup_hotspot.sh` for the captive portal, install the systemd services (from 4.2), and ensure the Pi boots straight into "Hailo AI Cam" Wi-Fi mode serving the web app. 
-- **Done:** _(fill in commit hash)_
+- **How:** Expand the install scripts (or create a new `setup_field_pi.sh`) to automatically run the `setup_hotspot.sh` for the captive portal, install the systemd services (from 4.2), and ensure the Pi boots straight into "Hailo AI Cam" Wi-Fi mode serving the web app.
+- **Done:** Covered by `install.sh` (runs hotspot + enables systemd autostart). `start.sh` / `stop.sh` added for dev iteration without touching systemd.
 
 ---
 
@@ -174,6 +180,20 @@ One entry per working session. Newest at the top. Keep it short: what you touche
 - Notes / blockers: <anything the next person needs to know>
 - Next: <what you'd pick up tomorrow>
 ```
+
+### 2026-05-27 — Network settings panel
+- Touched: `app.html`, `server.py`
+- Tasks moved: 3.1b → done (new task, added and closed)
+- Commits: _(fill in hash)_
+- Notes: Hamburger button (⁝, fixed top-right) opens a settings modal. Fetches `/network-status` on open (uses `nmcli` to detect whether "Hailo AI Cam" connection is active). Hotspot state shows SSID + password form with show/hide toggle; submitting calls `/configure-wifi` which adds an NM profile then switches off the AP in a background thread after 2 s (so the HTTP response goes out first). Wi-Fi state shows "Re-enable Hotspot" which calls `/enable-hotspot`. Connect response includes `hostname.local` so user knows where to find the Pi after disconnecting from the AP. Clicking the backdrop or × closes the panel.
+- Next: 3.2 (continuous/live mode)
+
+### 2026-05-27 — Install & service scripts
+- Touched: `install.sh` (new), `start.sh` (new), `stop.sh` (new), `deploy/hailo-daemon.service` (new), `deploy/pi-ai-hat-web.service` (new), `TODO.md`
+- Tasks moved: 4.2 → done, 4.3 → done, 4.4 → done
+- Commits: _(fill in hash)_
+- Notes: `install.sh` is the one-shot zero-to-hero script (apt → venv → pip → SSL cert → hotspot → systemd). Venv is created as `web_env/`. `start.sh`/`stop.sh` are for dev iteration — they stop any live systemd units first to avoid port conflicts, then run both processes in the background with logs under `logs/`. The `deploy/` service files use `/opt/pi-ai-hat` as the install path; `install.sh` writes them with the actual runtime path resolved from `$BASH_SOURCE`.
+- Next: 4.1 (pin requirements.txt after a clean install into web_env)
 
 ### 2026-05-27 — Dynamic Model Loading
 - Touched: `server.py`, `hailo_daemon.py`, `index.html`

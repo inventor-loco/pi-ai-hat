@@ -82,18 +82,25 @@ wget https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.15.
 
 If you are using the full Hailo-8 (not the 8L), swap `hailo8l` for `hailo8` in the URL.
 
-### 4. Create the web virtual environment
+### 4. Run the install script
 
-We use [`uv`](https://github.com/astral-sh/uv) to build the isolated FastAPI environment — it's much faster than `pip` and keeps the venv cleanly separated from the system Python the Hailo driver depends on.
-
-Python dependencies for the web layer are pinned in [`requirements.txt`](requirements.txt).
+`install.sh` automates the remaining setup in one shot: it creates the Python virtual environment, installs all dependencies, generates the SSL certificate, configures the Wi-Fi hotspot, and registers both services with systemd so they start automatically on every boot.
 
 ```bash
-# Install uv globally if you don't have it yet
-curl -LsSf https://astral.sh/uv/install.sh | sh
-source $HOME/.local/bin/env   # or restart your shell
+cd pi-ai-hat
+sudo bash install.sh
+```
 
-# Create the venv only if it doesn't already exist, then install deps
+That's it. On the next reboot both services come up on their own.
+
+<details>
+<summary>Manual venv setup (optional, if you are not using install.sh)</summary>
+
+```bash
+# Install uv if you don't have it
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
+
 if [ ! -d web_env ]; then
     uv venv web_env
 fi
@@ -101,38 +108,68 @@ source web_env/bin/activate
 uv pip install -r requirements.txt
 deactivate
 ```
-
-Re-running these commands is safe: `uv venv` is skipped when `web_env/` already exists, and `uv pip install -r requirements.txt` is idempotent — it will only install what's missing or out of date.
+</details>
 
 ---
 
 ## Running the System
 
-Because the architecture is decoupled, you need **two terminal sessions** (or use `tmux` / `screen`).
+### Automated (recommended)
 
-### Terminal 1 — Hardware Daemon
+After `install.sh`, both services are managed by systemd and **start automatically on every boot** — no manual steps needed.
 
-Run this **outside** of any virtual environment, using the system Python, with `sudo` so it can open `/dev/hailo0`. The daemon will load models dynamically as requested by the web app.
+Check that everything came up:
+
+```bash
+systemctl status hailo-daemon pi-ai-hat-web
+```
+
+Watch live logs:
+
+```bash
+journalctl -fu hailo-daemon -fu pi-ai-hat-web
+```
+
+### Development / iteration
+
+During development, use the included scripts to restart quickly without touching systemd:
+
+```bash
+# Stop everything (graceful kill by PID, then pkill fallback)
+sudo bash stop.sh
+
+# ... edit server.py or hailo_daemon.py ...
+
+# Restart both services in the background
+sudo bash start.sh
+
+# Tail logs from both processes
+tail -f logs/hailo_daemon.log logs/server.log
+```
+
+`start.sh` automatically stops any live systemd-managed instance first, so there are no port conflicts.
+
+### Manual (two terminals, no install script)
+
+**Terminal 1 — Hardware Daemon**
+
+Run **outside** any virtual environment using the system Python:
 
 ```bash
 cd pi-ai-hat
 sudo /usr/bin/python3 hailo_daemon.py
 ```
 
-Wait until you see:
+Wait until you see: `Hailo Core Daemon listening locally on port 8001...`
 
-```
-Hailo Core Daemon listening locally on port 8001...
-```
-
-### Terminal 2 — Web Server
+**Terminal 2 — Web Server**
 
 ```bash
 cd pi-ai-hat
 sudo ./web_env/bin/python server.py
 ```
 
-> **Note:** We must run `server.py` with `sudo` because it binds to ports `80` and `443` to act as a Captive Portal and handle HTTPS. It automatically generates a self-signed SSL certificate on the first run so that your smartphone's camera works securely over the local network!
+> **Note:** `server.py` must run as root because it binds to ports `80` and `443`. It generates a self-signed SSL certificate automatically on first run.
 
 ---
 
@@ -156,10 +193,27 @@ Then:
 The frontend grabs the frame, proxies it through the FastAPI server to the daemon, runs inference natively on the Hailo cores, and draws the bounding boxes over the snapshot.
 
 ### Captive Portal (Headless Wi-Fi)
-You can easily use the Pi in the field by turning it into a Wi-Fi Access Point:
-1. Run `sudo ./setup_hotspot.sh` to create the hotspot.
-2. Connect your phone to the **"Hailo AI Cam"** Wi-Fi network.
-3. The Captive Portal landing page (`index.html`) will automatically pop up, providing instructions to launch the main web app (`app.html`) using the phone's native browser.
+`install.sh` configures the hotspot automatically. If you need to set it up manually:
+
+```bash
+sudo bash setup_hotspot.sh
+```
+
+Once the hotspot is active:
+1. Connect your phone to the **"Hailo AI Cam"** Wi-Fi network.
+2. The Captive Portal landing page (`index.html`) will automatically pop up.
+3. Tap the link to open the main web app (`app.html`) in your full browser.
+
+### Network Settings (hamburger menu ☰)
+
+The web app has a settings panel accessible from the **☰ button** in the top-right corner. It lets you switch the Pi between hotspot and Wi-Fi client mode without any SSH or command-line access.
+
+| Current mode | What you see | What it does |
+|---|---|---|
+| Hotspot active | SSID + password form | Connects Pi to a Wi-Fi router and exits AP mode |
+| Wi-Fi connected | "Re-enable Hotspot" button | Switches back to AP / field mode |
+
+After connecting to a Wi-Fi network, the Pi leaves the hotspot in ~2 seconds. The panel tells you the hostname (e.g. `raspberrypi.local`) to find the Pi on the new network.
 
 ### Android Native App
 If you prefer a native mobile experience, the `android_client/` directory contains a fully functional Android application built in Kotlin. It uses the phone's native camera to take high-quality photos and sends them to the Hailo server for inference.
@@ -186,3 +240,4 @@ To use your own compiled `.hef`:
 - **`hailo_daemon.py` crashes on import** — you are almost certainly running it inside the venv. Deactivate and call `/usr/bin/python3` explicitly.
 - **`server.py` cannot reach the daemon** — confirm the daemon is up on port `8001` (`ss -tlnp | grep 8001`) and that no firewall rule blocks loopback.
 - **Browser blocks the camera** — Because we are using a self-signed HTTPS certificate, you must click "Advanced -> Proceed" when loading the app. If you are inside the Wi-Fi captive portal popup on your phone, you must open the page in your full browser (Chrome/Safari) to grant camera permissions.
+- **Pi is stuck in hotspot mode and needs internet access** — Open the web app, tap ☰ (top-right), enter your Wi-Fi network name and password, and press **Connect to Wi-Fi**. The Pi will leave the hotspot and join your network. When you are done, use the same menu to re-enable the hotspot. If you cannot reach the web app, connect the Pi via Ethernet — the hotspot only occupies `wlan0` so `eth0` is always free.

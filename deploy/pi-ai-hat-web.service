@@ -1,0 +1,16 @@
+[Unit]
+Description=pi-ai-hat Web Server
+After=network.target hailo-daemon.service
+Requires=hailo-daemon.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/pi-ai-hat
+ExecStart=/opt/pi-ai-hat/web_env/bin/python /opt/pi-ai-hat/server.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
