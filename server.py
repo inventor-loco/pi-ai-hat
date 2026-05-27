@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Request
+from fastapi import FastAPI, File, UploadFile, Request, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 import httpx
@@ -18,20 +18,28 @@ async def serve_index():
     # Serves the frontend UI directly to anyone who visits the Pi's IP address
     return FileResponse("index.html")
 
-@app.get("/{catchall:path}")
-async def catch_all_route(catchall: str, request: Request):
-    # Captive portals ping various URLs to check connectivity. 
-    # Redirecting them to the root forces the "Sign in to network" screen to load our app.
-    return RedirectResponse(url="/")
+@app.get("/models")
+async def list_models():
+    import os
+    models_dir = os.path.join(os.path.dirname(__file__), 'models')
+    os.makedirs(models_dir, exist_ok=True)
+    files = [f for f in os.listdir(models_dir) if f.endswith(".hef")]
+    return {"models": files}
 
 @app.post("/process-frame")
-async def process_frame(file: UploadFile = File(...)):
+async def process_frame(file: UploadFile = File(...), model: str = Form(None)):
     img_bytes = await file.read()
+    
+    headers = {}
+    if model:
+        headers["X-Model"] = model
+
     async with httpx.AsyncClient() as client:
         try:
             daemon_response = await client.post(
                 "http://127.0.0.1:8001/",
                 content=img_bytes,
+                headers=headers,
                 timeout=5.0
             )
             if daemon_response.status_code != 200:
@@ -41,6 +49,13 @@ async def process_frame(file: UploadFile = File(...)):
             return {"status": "error", "message": "Hailo daemon offline on port 8001."}
         except Exception as e:
             return {"status": "error", "message": f"Proxy crash: {str(e)}"}
+
+@app.get("/{catchall:path}")
+async def catch_all_route(catchall: str, request: Request):
+    # Captive portals ping various URLs to check connectivity. 
+    # Redirecting them to the root forces the "Sign in to network" screen to load our app.
+    return RedirectResponse(url="/")
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -8,10 +8,10 @@
         body { font-family: sans-serif; background: #111; color: #fff; text-align: center; }
         .controls { margin-top: 20px; }
         select { padding: 10px; font-size: 16px; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; margin-bottom: 20px; cursor: pointer; max-width: 400px; }
-        .panels { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+        .panels { display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; }
         .panel { display: flex; flex-direction: column; align-items: center; }
-        video, canvas { border-radius: 8px; border: 2px solid #333; background: #000; transform: scaleX(-1); }
-        button { margin-top: 20px; padding: 15px 30px; font-size: 18px; cursor: pointer; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; transition: 0.2s; }
+        video, canvas { border-radius: 8px; border: 2px solid #333; background: #000; transform: scaleX(-1); max-width: 100%; height: auto; }
+        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; transition: 0.2s; }
         button:active { transform: scale(0.95); }
         button:disabled { background: #555; cursor: not-allowed; }
         #statusText { margin-top: 15px; font-size: 16px; color: #aaa; }
@@ -26,6 +26,11 @@
         <select id="cameraSelect">
             <option value="">Loading cameras...</option>
         </select>
+        
+        <label for="modelSelect" style="margin-left: 15px;"><strong>Select Model: </strong></label>
+        <select id="modelSelect">
+            <option value="">Loading models...</option>
+        </select>
     </div>
 
     <div class="panels">
@@ -34,13 +39,14 @@
             <video id="webcam" width="640" height="480" autoplay playsinline></video>
         </div>
 
+        <button id="snapBtn">📸 Snap & Analyze</button>
+
         <div class="panel">
             <h3>Analyzed Snapshot</h3>
             <canvas id="snapshot" width="640" height="480"></canvas>
         </div>
     </div>
     
-    <button id="snapBtn">📸 Snap & Analyze</button>
     <p id="statusText">Initializing camera...</p>
 
     <script>
@@ -50,6 +56,30 @@
         const snapBtn = document.getElementById('snapBtn');
         const statusText = document.getElementById('statusText');
         const cameraSelect = document.getElementById('cameraSelect');
+        const modelSelect = document.getElementById('modelSelect');
+        
+        // Fetch available models from backend
+        async function loadModels() {
+            try {
+                const response = await fetch('/models');
+                const data = await response.json();
+                modelSelect.innerHTML = '';
+                if (data.models && data.models.length > 0) {
+                    data.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model;
+                        option.text = model;
+                        modelSelect.appendChild(option);
+                    });
+                } else {
+                    modelSelect.innerHTML = '<option value="">No models found in models/ folder</option>';
+                }
+            } catch (err) {
+                modelSelect.innerHTML = '<option value="">Error loading models</option>';
+                console.error("Failed to fetch models:", err);
+            }
+        }
+        loadModels();
         
         let currentStream = null;
 
@@ -110,6 +140,9 @@
             canvas.toBlob(async (blob) => {
                 const formData = new FormData();
                 formData.append('file', blob, 'snap.jpg');
+                if (modelSelect.value) {
+                    formData.append('model', modelSelect.value);
+                }
 
                 try {
                     const start = Date.now();

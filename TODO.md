@@ -16,7 +16,7 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked (e
 ## 1. Model & Inference (`hailo_daemon.py`)
 
 ### 1.1 Make the model path configurable
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Why:** `TARGET_MODEL = "yolov8n.hef"` is hardcoded ([hailo_daemon.py:9](hailo_daemon.py:9)). Swapping in Patrícia's grapevine `.hef` currently means editing the source.
 - **How:**
   1. Read the path from `argv[1]` with a fallback to the env var `HAILO_MODEL`, then to `"yolov8n.hef"`.
@@ -168,6 +168,13 @@ One entry per working session. Newest at the top. Keep it short: what you touche
 - Notes / blockers: <anything the next person needs to know>
 - Next: <what you'd pick up tomorrow>
 ```
+
+### 2026-05-27 — Dynamic Model Loading
+- Touched: `server.py`, `hailo_daemon.py`, `index.html`
+- Tasks moved: 1.1 Make the model path configurable -> done
+- Commits: _(fill in hash)_
+- Notes: Implemented dynamic model reloading via the web UI. Added a `models/` directory and a `/models` endpoint in `server.py` to list `.hef` files. The UI now populates a dropdown with available models and sends the selection as form data to `/process-frame`. `hailo_daemon.py` was refactored to read the `X-Model` header, intelligently releasing the Hailo `VDevice` hardware and loading the newly requested `.hef` model on-the-fly.
+- Next: Model labels sidecar file.
 
 ### 2026-05-27 — Captive Portal & AP Setup
 - Touched: `server.py`, `setup_hotspot.sh` (new)
