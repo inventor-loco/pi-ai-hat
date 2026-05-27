@@ -169,6 +169,13 @@ One entry per working session. Newest at the top. Keep it short: what you touche
 - Next: <what you'd pick up tomorrow>
 ```
 
+### 2026-05-27 — Captive Portal & AP Setup
+- Touched: `server.py`, `setup_hotspot.sh` (new)
+- Tasks moved: none
+- Commits: _(fill in hash)_
+- Notes: Configured the Pi to act as a Wi-Fi Access Point using NetworkManager (`setup_hotspot.sh`). Modified `server.py` to run on HTTPS (port 443) using a self-signed certificate, with a background HTTP redirect server on port 80. Added a catch-all route to intercept captive portal connectivity checks so phones automatically load the web app when connecting to the 'Hailo AI Cam' Wi-Fi.
+- Next: Follow up with systemd integration to ensure `server.py` runs automatically on boot with root privileges.
+
 ### 2026-05-27 — Android Client
 - Touched: `android_client/`, `docs/android_build_instructions.md`, `README.md`, `TODO.md`
 - Tasks moved: none — Android backlog seeded
