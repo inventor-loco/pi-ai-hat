@@ -82,18 +82,25 @@ if __name__ == "__main__":
     # Generate the cert if missing
     generate_self_signed_cert()
 
-    # Simple HTTP server on port 80 to redirect to HTTPS on port 443
+    # Simple HTTP server on port 80 to serve the Captive Portal landing page without SSL warnings
     class RedirectHandler(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):
-            self.send_response(302)
-            host = self.headers.get('Host', '10.42.0.1')
-            self.send_header('Location', f"https://{host}{self.path}")
-            self.end_headers()
+            try:
+                with open("index.html", "rb") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.send_header("Content-Length", str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            except Exception as e:
+                self.send_response(500)
+                self.end_headers()
 
     def run_http_redirect():
         try:
             with socketserver.TCPServer(("0.0.0.0", 80), RedirectHandler) as httpd:
-                print("HTTP Redirect Server running on port 80...")
+                print("HTTP Captive Portal Server running on port 80...")
                 httpd.serve_forever()
         except PermissionError:
             print("Permission denied: You must run this script with 'sudo' to bind to ports 80 and 443.")
