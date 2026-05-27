@@ -17,29 +17,24 @@ echo "Venv        : $VENV_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
-# 0. Prerequisite check — hailo-all must be installed before this script runs.
-#    It pulls in the kernel driver, udev rules, and hailo_platform Python bindings.
-#    See README step 1 for installation instructions.
-# ---------------------------------------------------------------------------
-if ! dpkg -s hailo-all &>/dev/null; then
-  echo "ERROR: The 'hailo-all' package is not installed."
-  echo ""
-  echo "Follow README step 1 first:"
-  echo "  sudo apt update && sudo apt full-upgrade -y"
-  echo "  sudo apt install -y linux-headers-rpi-2712 dkms hailo-all"
-  echo "  sudo reboot"
-  echo ""
-  echo "Then re-run this script."
-  exit 1
-fi
-echo "[0/6] hailo-all is installed. OK."
-
-# ---------------------------------------------------------------------------
-# 1. System dependencies
+# 1. System dependencies (including the Hailo driver)
 # ---------------------------------------------------------------------------
 echo "[1/6] Installing system packages..."
 apt-get update -qq
-apt-get install -y python3-venv python3-pip openssl
+apt-get install -y python3-venv python3-pip openssl linux-headers-rpi-2712 dkms hailo-all
+
+# The Hailo kernel module only becomes active after a reboot.
+# If /dev/hailo0 does not exist yet, we are done for this run.
+if [ ! -e /dev/hailo0 ]; then
+  echo ""
+  echo "=== Reboot required ==="
+  echo "The Hailo driver was just installed and needs a reboot to load."
+  echo "After rebooting, run this script again to finish the setup:"
+  echo "  sudo reboot"
+  echo "  sudo bash $SCRIPT_DIR/install.sh"
+  exit 0
+fi
+echo "  /dev/hailo0 present. Continuing."
 
 # ---------------------------------------------------------------------------
 # 2. Python virtual environment for the web server

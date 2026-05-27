@@ -37,63 +37,41 @@ The official `hailo_platform` Python bindings need to talk directly to the PCIe 
 
 These steps assume a clean install of Raspberry Pi OS (Bookworm or Trixie, 64-bit) on a Pi 5.
 
-### 1. Install kernel headers and the Hailo driver
-
-On modern Raspberry Pi OS releases, the kernel headers and DKMS modules must match the Pi 5's architecture.
+### 1. Clone the repository and fetch a model
 
 ```bash
-sudo apt update
-sudo apt full-upgrade -y
-
-# Pi 5-specific kernel headers
-sudo apt install -y linux-headers-rpi-2712
-# Fallback if the package above is unavailable:
-# sudo apt install -y linux-headers-$(uname -r)
-
-# DKMS + Hailo master driver package
-sudo apt install -y dkms hailo-all
-# If you have the AI HAT+ 2 (Hailo-10H) instead, use:
-# sudo apt install -y hailo-h10-all
-
-sudo reboot
-```
-
-### 2. Verify the PCIe hardware node
-
-After the reboot, load the kernel module and confirm the device node exists.
-
-```bash
-sudo modprobe hailo_pci
-ls /dev/hailo*
-# Expected output: /dev/hailo0
-```
-
-If you do not see `/dev/hailo0`, recheck the HAT seating on the PCIe connector and confirm PCIe is enabled in `/boot/firmware/config.txt` (`dtparam=pciex1`).
-
-### 3. Clone the repository and fetch a model
-
-```bash
-git clone https://github.com/<YOUR_USER>/pi-ai-hat.git
+git clone https://github.com/inventor-loco/pi-ai-hat.git
 cd pi-ai-hat
 
 # Pre-compiled YOLOv8 nano model for Hailo-8L
-wget https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.15.0/hailo8l/yolov8n.hef
+wget https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.15.0/hailo8l/yolov8n.hef -P models/
 ```
 
 If you are using the full Hailo-8 (not the 8L), swap `hailo8l` for `hailo8` in the URL.
 
-### 4. Run the install script
+### 2. Run the install script (twice — a reboot is required in the middle)
 
-> **Note:** `install.sh` will exit early with an error if `hailo-all` is not installed. Steps 1–3 above are prerequisites.
+`install.sh` handles everything: kernel headers, Hailo driver, Python venv, SSL certificate, Wi-Fi hotspot, and systemd autostart.
 
-`install.sh` automates the remaining setup in one shot: it creates the Python virtual environment, installs all dependencies, generates the SSL certificate, configures the Wi-Fi hotspot, and registers both services with systemd so they start automatically on every boot.
+**First run** — installs the Hailo driver and prompts for a reboot:
+
+```bash
+sudo bash install.sh
+sudo reboot
+```
+
+**Second run** — completes the setup after the driver is loaded:
 
 ```bash
 cd pi-ai-hat
 sudo bash install.sh
 ```
 
-That's it. On the next reboot both services come up on their own.
+That's it. Both services come up automatically on every subsequent boot.
+
+> **If `/dev/hailo0` never appears after reboot:** recheck the HAT seating on the PCIe connector and confirm PCIe is enabled in `/boot/firmware/config.txt` (`dtparam=pciex1`). Then run `sudo modprobe hailo_pci && ls /dev/hailo*` to verify.
+
+> **AI HAT+ 2 (Hailo-10H):** edit the `apt-get install` line in `install.sh` and replace `hailo-all` with `hailo-h10-all` before running.
 
 <details>
 <summary>Manual venv setup (optional, if you are not using install.sh)</summary>
