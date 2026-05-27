@@ -150,7 +150,13 @@ sudo ./web_env/bin/python server.py
 From any computer or phone on the same local network, open a browser and go to:
 
 ```
-https://<YOUR_RASPBERRY_PI_IP>/app.html
+https://hailocam.local/app.html
+```
+
+Or, if you are connected directly to the Pi's Wi-Fi Hotspot, you can explicitly use its IP address:
+
+```
+https://10.42.0.1/app.html
 ```
 
 *(You must click "Advanced -> Proceed" to bypass the self-signed certificate warning the first time).*

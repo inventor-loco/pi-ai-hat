@@ -125,7 +125,7 @@
         <div class="warning-box">
             <strong>🔒 SSL Certificate Warning</strong><br>
             Because this is an offline local network, your browser will warn you that the connection is "Not Private" or "Not Safe". <br><br>
-            This is <b>completely normal and safe</b>. You must click <i>"Advanced"</i> ➔ <i>"Proceed to 10.42.0.1"</i> to load the app.
+            This is <b>completely normal and safe</b>. You must click <i>"Advanced"</i> ➔ <i>"Proceed to hailocam.local" (or 10.42.0.1)</i> to load the app.
         </div>
 
         <div class="warning-box">
@@ -139,7 +139,7 @@
         <div class="manual-instructions">
             <b>Important:</b><br><br>
             <b>Android:</b> Tapping the button should automatically open Chrome.<br><br>
-            <b>iOS (iPhone):</b> Tapping the button will turn the "Cancel" button in the top right into a blue "Done" button. Tap "Done" to close this window, then manually open Safari and type in <b>https://10.42.0.1/app.html</b>
+            <b>iOS (iPhone):</b> Tapping the button will turn the "Cancel" button in the top right into a blue "Done" button. Tap "Done" to close this window, then manually open Safari and type in <b>https://hailocam.local/app.html</b> (or <b>https://10.42.0.1/app.html</b>)
         </div>
 
         <script>
@@ -155,12 +155,12 @@
                 // 2. Try to force-open Android Chrome
                 const isAndroid = /Android/i.test(navigator.userAgent);
                 if (isAndroid) {
-                    window.location.href = "intent://10.42.0.1/app.html#Intent;scheme=https;package=com.android.chrome;end";
+                    window.location.href = "intent://hailocam.local/app.html#Intent;scheme=https;package=com.android.chrome;end";
                 } else {
                     // For iOS, the 'approve' fetch just turns the "Cancel" button into "Done".
                     // The user must tap "Done" to exit the mini-browser, then open Safari manually.
                     // We can still try to redirect them in case they are already in a real browser.
-                    window.location.href = "https://10.42.0.1/app.html";
+                    window.location.href = "https://hailocam.local/app.html";
                 }
             });
         </script>
