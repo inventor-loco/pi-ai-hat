@@ -93,10 +93,10 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked (e
 - **Done:** _(fill in commit hash)_
 
 ### 3.3 HTTPS / camera-permission helper
-- **Status:** `[ ]`
+- **Status:** `[x]`
 - **Why:** `getUserMedia` won't work in Chrome/Firefox over plain `http://<pi-ip>:8000` from another device. Users hit this on first run.
 - **How:** Detect `navigator.mediaDevices === undefined` on load and render a clear message with the two workarounds from the README troubleshooting section.
-- **Done:** _(fill in commit hash)_
+- **Done:** Implemented proper self-signed SSL on `server.py` and built a Captive Portal warning UI to guide the user into a full browser session with camera permissions.
 
 ---
 
@@ -118,6 +118,12 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked (e
 - **Status:** `[ ]`
 - **Why:** The README install is ~6 steps. A single `./install.sh` that runs them in order (idempotently) is what Patrícia and other non-systems folks will actually use.
 - **How:** Wrap sections 1–4 of the README into `install.sh` with `set -euo pipefail`. Use `command -v uv` checks so re-runs are safe. Do **not** auto-`sudo` — print the command if root is needed.
+- **Done:** _(fill in commit hash)_
+
+### 4.4 Zero-to-Hero configuration script
+- **Status:** `[ ]`
+- **Why:** To make deploying new Pi units totally seamless for the field, we need a script that configures everything from zero.
+- **How:** Expand the install scripts (or create a new `setup_field_pi.sh`) to automatically run the `setup_hotspot.sh` for the captive portal, install the systemd services (from 4.2), and ensure the Pi boots straight into "Hailo AI Cam" Wi-Fi mode serving the web app. 
 - **Done:** _(fill in commit hash)_
 
 ---

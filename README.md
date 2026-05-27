@@ -112,7 +112,7 @@ Because the architecture is decoupled, you need **two terminal sessions** (or us
 
 ### Terminal 1 — Hardware Daemon
 
-Run this **outside** of any virtual environment, using the system Python, with `sudo` so it can open `/dev/hailo0`.
+Run this **outside** of any virtual environment, using the system Python, with `sudo` so it can open `/dev/hailo0`. The daemon will load models dynamically as requested by the web app.
 
 ```bash
 cd pi-ai-hat
@@ -129,22 +129,23 @@ Hailo Core Daemon listening locally on port 8001...
 
 ```bash
 cd pi-ai-hat
-source web_env/bin/activate
-python3 server.py
+sudo ./web_env/bin/python server.py
 ```
 
-FastAPI will start on port `8000`.
+> **Note:** We must run `server.py` with `sudo` because it binds to ports `80` and `443` to act as a Captive Portal and handle HTTPS. It automatically generates a self-signed SSL certificate on the first run so that your smartphone's camera works securely over the local network!
 
 ---
 
 ## Using the Interface
 
-### Web UI
+### Web UI (Via Wi-Fi or Local IP)
 From any computer or phone on the same local network, open a browser and go to:
 
 ```
-http://<YOUR_RASPBERRY_PI_IP>:8000/
+https://<YOUR_RASPBERRY_PI_IP>/app.html
 ```
+
+*(You must click "Advanced -> Proceed" to bypass the self-signed certificate warning the first time).*
 
 Then:
 
@@ -153,6 +154,12 @@ Then:
 3. Click **Snap & Analyze**.
 
 The frontend grabs the frame, proxies it through the FastAPI server to the daemon, runs inference natively on the Hailo cores, and draws the bounding boxes over the snapshot.
+
+### Captive Portal (Headless Wi-Fi)
+You can easily use the Pi in the field by turning it into a Wi-Fi Access Point:
+1. Run `sudo ./setup_hotspot.sh` to create the hotspot.
+2. Connect your phone to the **"Hailo AI Cam"** Wi-Fi network.
+3. The Captive Portal landing page (`index.html`) will automatically pop up, providing instructions to launch the main web app (`app.html`) using the phone's native browser.
 
 ### Android Native App
 If you prefer a native mobile experience, the `android_client/` directory contains a fully functional Android application built in Kotlin. It uses the phone's native camera to take high-quality photos and sends them to the Hailo server for inference.
@@ -165,11 +172,9 @@ See the **[Android Build Instructions](docs/android_build_instructions.md)** for
 
 To use your own compiled `.hef`:
 
-1. Drop the file next to `hailo_daemon.py`.
-2. Update the model path (and, if your model uses a different head, the NMS / post-processing logic) inside `hailo_daemon.py`.
-3. Restart the daemon.
-
-The web layer (`server.py`, `index.html`) is model-agnostic — it just forwards image bytes and renders whatever boxes the daemon returns.
+1. Drop the `.hef` file into the `models/` folder.
+2. Open the web app. The UI will automatically discover your model and list it in the "Select Model" dropdown! 
+3. When you take a picture, the daemon will dynamically switch contexts and load your newly selected model directly into the Hailo NPU.
 
 **Training a model from scratch?** See [docs/model-export.md](docs/model-export.md) for the full pipeline: dataset layout, YOLOv8 fine-tuning, ONNX export, and `hailomz` compilation to a Hailo-8L `.hef`.
 
@@ -180,4 +185,4 @@ The web layer (`server.py`, `index.html`) is model-agnostic — it just forwards
 - **`/dev/hailo0` does not appear** — make sure the HAT is seated, PCIe is enabled in `config.txt`, and `dkms status` shows the `hailort` module as installed.
 - **`hailo_daemon.py` crashes on import** — you are almost certainly running it inside the venv. Deactivate and call `/usr/bin/python3` explicitly.
 - **`server.py` cannot reach the daemon** — confirm the daemon is up on port `8001` (`ss -tlnp | grep 8001`) and that no firewall rule blocks loopback.
-- **Browser shows no cameras** — most browsers only expose `getUserMedia` over `https://` or `http://localhost`. From another device, use Chrome with the Pi's IP added to `chrome://flags/#unsafely-treat-insecure-origin-as-secure`, or front the server with a reverse proxy that terminates TLS.
+- **Browser blocks the camera** — Because we are using a self-signed HTTPS certificate, you must click "Advanced -> Proceed" when loading the app. If you are inside the Wi-Fi captive portal popup on your phone, you must open the page in your full browser (Chrome/Safari) to grant camera permissions.
