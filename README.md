@@ -84,6 +84,8 @@ If you are using the full Hailo-8 (not the 8L), swap `hailo8l` for `hailo8` in t
 
 ### 4. Run the install script
 
+> **Note:** `install.sh` will exit early with an error if `hailo-all` is not installed. Steps 1–3 above are prerequisites.
+
 `install.sh` automates the remaining setup in one shot: it creates the Python virtual environment, installs all dependencies, generates the SSL certificate, configures the Wi-Fi hotspot, and registers both services with systemd so they start automatically on every boot.
 
 ```bash

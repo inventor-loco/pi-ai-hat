@@ -17,6 +17,24 @@ echo "Venv        : $VENV_DIR"
 echo ""
 
 # ---------------------------------------------------------------------------
+# 0. Prerequisite check — hailo-all must be installed before this script runs.
+#    It pulls in the kernel driver, udev rules, and hailo_platform Python bindings.
+#    See README step 1 for installation instructions.
+# ---------------------------------------------------------------------------
+if ! dpkg -s hailo-all &>/dev/null; then
+  echo "ERROR: The 'hailo-all' package is not installed."
+  echo ""
+  echo "Follow README step 1 first:"
+  echo "  sudo apt update && sudo apt full-upgrade -y"
+  echo "  sudo apt install -y linux-headers-rpi-2712 dkms hailo-all"
+  echo "  sudo reboot"
+  echo ""
+  echo "Then re-run this script."
+  exit 1
+fi
+echo "[0/6] hailo-all is installed. OK."
+
+# ---------------------------------------------------------------------------
 # 1. System dependencies
 # ---------------------------------------------------------------------------
 echo "[1/6] Installing system packages..."
@@ -74,7 +92,8 @@ echo "[6/6] Installing systemd service units..."
 cat > /etc/systemd/system/hailo-daemon.service <<EOF
 [Unit]
 Description=Hailo AI Inference Daemon
-After=network.target
+After=dev-hailo0.device
+Requires=dev-hailo0.device
 
 [Service]
 Type=simple
@@ -82,6 +101,7 @@ WorkingDirectory=$SCRIPT_DIR
 ExecStart=/usr/bin/python3 $SCRIPT_DIR/hailo_daemon.py
 Restart=on-failure
 RestartSec=5
+StartLimitIntervalSec=0
 StandardOutput=journal
 StandardError=journal
 
@@ -119,6 +139,7 @@ Wants=pi-ai-hat-hotspot.service
 [Service]
 Type=simple
 WorkingDirectory=$SCRIPT_DIR
+ExecStartPre=/bin/bash -c 'i=0; until ss -tlnp | grep -q ":8001"; do i=\$((i+1)); [ \$i -ge 60 ] && exit 1; sleep 1; done'
 ExecStart=$VENV_DIR/bin/python $SCRIPT_DIR/server.py
 Restart=on-failure
 RestartSec=5

@@ -7,6 +7,9 @@ Wants=pi-ai-hat-hotspot.service
 [Service]
 Type=simple
 WorkingDirectory=/opt/pi-ai-hat
+# Block until the daemon is actually listening — prevents the race where the
+# web server starts before hailo_daemon.py has bound to port 8001.
+ExecStartPre=/bin/bash -c 'i=0; until ss -tlnp | grep -q ":8001"; do i=$((i+1)); [ $i -ge 60 ] && exit 1; sleep 1; done'
 ExecStart=/opt/pi-ai-hat/web_env/bin/python /opt/pi-ai-hat/server.py
 Restart=on-failure
 RestartSec=5

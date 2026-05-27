@@ -1,6 +1,8 @@
 [Unit]
 Description=Hailo AI Inference Daemon
-After=network.target
+# Wait for the PCIe device node — hailo_platform cannot open /dev/hailo0 before udev creates it.
+After=dev-hailo0.device
+Requires=dev-hailo0.device
 
 [Service]
 Type=simple
@@ -8,6 +10,8 @@ WorkingDirectory=/opt/pi-ai-hat
 ExecStart=/usr/bin/python3 /opt/pi-ai-hat/hailo_daemon.py
 Restart=on-failure
 RestartSec=5
+# Disable the burst rate-limit so a slow hardware init doesn't permanently kill the service.
+StartLimitIntervalSec=0
 StandardOutput=journal
 StandardError=journal
 
