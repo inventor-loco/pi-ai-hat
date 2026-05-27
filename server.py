@@ -146,9 +146,49 @@ if __name__ == "__main__":
     # Generate the cert if missing
     generate_self_signed_cert()
 
+    approved_ips = set()
+
     # Simple HTTP server on port 80 to serve the Captive Portal landing page without SSL warnings
     class RedirectHandler(http.server.SimpleHTTPRequestHandler):
         def do_GET(self):
+            client_ip = self.client_address[0]
+            
+            # 1. Handle authorization request from the button
+            if self.path == '/approve':
+                approved_ips.add(client_ip)
+                self.send_response(200)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                return
+
+            # 2. If already approved, spoof a successful internet connection so the OS closes the portal
+            if client_ip in approved_ips:
+                user_agent = self.headers.get("User-Agent", "").lower()
+                host = self.headers.get("Host", "").lower()
+                
+                # Apple devices
+                if "captive.apple.com" in host or "mac os" in user_agent or "iphone" in user_agent or "ipad" in user_agent:
+                    content = b"<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html")
+                    self.send_header("Content-Length", str(len(content)))
+                    self.end_headers()
+                    self.wfile.write(content)
+                # Windows devices
+                elif "msftconnecttest" in host or "windows" in user_agent:
+                    content = b"Microsoft Connect Test"
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/plain")
+                    self.send_header("Content-Length", str(len(content)))
+                    self.end_headers()
+                    self.wfile.write(content)
+                # Android / Default
+                else:
+                    self.send_response(204)
+                    self.end_headers()
+                return
+
+            # 3. Otherwise, serve the captive portal landing page
             try:
                 with open("index.html", "rb") as f:
                     content = f.read()

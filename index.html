@@ -133,14 +133,37 @@
             When the app loads, your browser will ask for permission to use the camera. You must tap <b>Allow</b> for the object detection to work.
         </div>
 
-        <!-- Attempt to open in a new tab -->
-        <a href="https://10.42.0.1/app.html" target="_blank" class="btn">Launch Web App</a>
+        <!-- Escape the captive portal -->
+        <button id="startBtn" class="btn" style="border: none; cursor: pointer;">Launch Web App</button>
 
         <div class="manual-instructions">
-            <b>If the button above doesn't work:</b><br><br>
-            <b>Android:</b> Tap the three dots (⋮) in the top right corner and select "Open in Browser".<br><br>
-            <b>iOS (iPhone):</b> Tap "Cancel" in the top right, select "Use Without Internet", then manually open Safari and type in <b>https://10.42.0.1/app.html</b>
+            <b>Important:</b><br><br>
+            <b>Android:</b> Tapping the button should automatically open Chrome.<br><br>
+            <b>iOS (iPhone):</b> Tapping the button will turn the "Cancel" button in the top right into a blue "Done" button. Tap "Done" to close this window, then manually open Safari and type in <b>https://10.42.0.1/app.html</b>
         </div>
+
+        <script>
+            document.getElementById('startBtn').addEventListener('click', async () => {
+                // 1. Tell the Pi to start spoofing internet success for our IP address
+                // This tricks the OS into thinking the captive portal login was successful.
+                try {
+                    await fetch('/approve');
+                } catch (e) {
+                    console.error("Failed to hit /approve", e);
+                }
+                
+                // 2. Try to force-open Android Chrome
+                const isAndroid = /Android/i.test(navigator.userAgent);
+                if (isAndroid) {
+                    window.location.href = "intent://10.42.0.1/app.html#Intent;scheme=https;package=com.android.chrome;end";
+                } else {
+                    // For iOS, the 'approve' fetch just turns the "Cancel" button into "Done".
+                    // The user must tap "Done" to exit the mini-browser, then open Safari manually.
+                    // We can still try to redirect them in case they are already in a real browser.
+                    window.location.href = "https://10.42.0.1/app.html";
+                }
+            });
+        </script>
     </div>
 
 </body>
