@@ -1,8 +1,6 @@
 [Unit]
 Description=Hailo AI Inference Daemon
-# Wait for the PCIe device node — hailo_platform cannot open /dev/hailo0 before udev creates it.
-After=dev-hailo0.device
-Requires=dev-hailo0.device
+After=local-fs.target
 
 [Service]
 Type=simple

@@ -74,8 +74,7 @@ echo "[6/6] Installing systemd service units..."
 cat > /etc/systemd/system/hailo-daemon.service <<EOF
 [Unit]
 Description=Hailo AI Inference Daemon
-After=dev-hailo0.device
-Requires=dev-hailo0.device
+After=local-fs.target
 
 [Service]
 Type=simple
@@ -115,8 +114,7 @@ cat > /etc/systemd/system/pi-ai-hat-web.service <<EOF
 [Unit]
 Description=pi-ai-hat Web Server
 After=network.target hailo-daemon.service pi-ai-hat-hotspot.service
-Requires=hailo-daemon.service
-Wants=pi-ai-hat-hotspot.service
+Wants=hailo-daemon.service pi-ai-hat-hotspot.service
 
 [Service]
 Type=simple
