@@ -35,6 +35,11 @@ done
 
 mkdir -p "$LOG_DIR"
 
+echo "Activating hotspot..."
+nmcli connection up "Hailo AI Cam" 2>/dev/null \
+  && echo "  Hotspot up." \
+  || echo "  Hotspot not configured yet — run install.sh first."
+
 echo "Starting hailo daemon..."
 /usr/bin/python3 "$SCRIPT_DIR/hailo_daemon.py" \
   >"$LOG_DIR/hailo_daemon.log" 2>&1 &

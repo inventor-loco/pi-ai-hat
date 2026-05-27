@@ -181,6 +181,13 @@ One entry per working session. Newest at the top. Keep it short: what you touche
 - Next: <what you'd pick up tomorrow>
 ```
 
+### 2026-05-27 — Hotspot-on-boot
+- Touched: `deploy/pi-ai-hat-web.service`, `install.sh`, `start.sh`
+- Tasks moved: none (behaviour tweak, no standalone task)
+- Commits: _(fill in hash)_
+- Notes: `pi-ai-hat-web.service` now has `ExecStartPre=-/usr/bin/nmcli connection up "Hailo AI Cam"` (the `-` prefix means "don't fail if this errors", so a Pi that hasn't run `setup_hotspot.sh` yet still boots). `start.sh` does the same before launching processes. Result: the Pi always resets to hotspot mode on every service start, regardless of what the user left it set to from the hamburger menu.
+- Next: nothing new — this pairs with the network settings panel (3.1b)
+
 ### 2026-05-27 — Network settings panel
 - Touched: `app.html`, `server.py`
 - Tasks moved: 3.1b → done (new task, added and closed)

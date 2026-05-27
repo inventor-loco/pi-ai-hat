@@ -206,6 +206,10 @@ Once the hotspot is active:
 
 ### Network Settings (hamburger menu ☰)
 
+> **Default behaviour:** every time the services start (on boot or via `start.sh`) the Pi automatically activates the "Hailo AI Cam" hotspot, so it is always in field mode out of the box.
+
+
+
 The web app has a settings panel accessible from the **☰ button** in the top-right corner. It lets you switch the Pi between hotspot and Wi-Fi client mode without any SSH or command-line access.
 
 | Current mode | What you see | What it does |

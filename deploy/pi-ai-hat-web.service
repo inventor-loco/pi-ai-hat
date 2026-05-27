@@ -1,11 +1,12 @@
 [Unit]
 Description=pi-ai-hat Web Server
-After=network.target hailo-daemon.service
+After=network.target NetworkManager.service hailo-daemon.service
 Requires=hailo-daemon.service
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/pi-ai-hat
+ExecStartPre=-/usr/bin/nmcli connection up "Hailo AI Cam"
 ExecStart=/opt/pi-ai-hat/web_env/bin/python /opt/pi-ai-hat/server.py
 Restart=on-failure
 RestartSec=5

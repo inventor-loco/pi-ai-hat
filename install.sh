@@ -93,12 +93,13 @@ EOF
 cat > /etc/systemd/system/pi-ai-hat-web.service <<EOF
 [Unit]
 Description=pi-ai-hat Web Server
-After=network.target hailo-daemon.service
+After=network.target NetworkManager.service hailo-daemon.service
 Requires=hailo-daemon.service
 
 [Service]
 Type=simple
 WorkingDirectory=$SCRIPT_DIR
+ExecStartPre=-/usr/bin/nmcli connection up "Hailo AI Cam"
 ExecStart=$VENV_DIR/bin/python $SCRIPT_DIR/server.py
 Restart=on-failure
 RestartSec=5
