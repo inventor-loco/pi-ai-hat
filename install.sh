@@ -23,19 +23,6 @@ echo "[1/6] Installing system packages..."
 apt-get update -qq
 apt-get install -y python3-venv python3-pip openssl linux-headers-rpi-2712 dkms hailo-all
 
-# The Hailo kernel module only becomes active after a reboot.
-# If /dev/hailo0 does not exist yet, we are done for this run.
-if [ ! -e /dev/hailo0 ]; then
-  echo ""
-  echo "=== Reboot required ==="
-  echo "The Hailo driver was just installed and needs a reboot to load."
-  echo "After rebooting, run this script again to finish the setup:"
-  echo "  sudo reboot"
-  echo "  sudo bash $SCRIPT_DIR/install.sh"
-  exit 0
-fi
-echo "  /dev/hailo0 present. Continuing."
-
 # ---------------------------------------------------------------------------
 # 2. Python virtual environment for the web server
 # ---------------------------------------------------------------------------
@@ -151,7 +138,14 @@ systemctl enable hailo-daemon.service pi-ai-hat-hotspot.service pi-ai-hat-web.se
 echo ""
 echo "=== Install complete ==="
 echo ""
-echo "Services are enabled and will start automatically on next boot."
-echo "To start them right now:   sudo bash $SCRIPT_DIR/start.sh"
-echo "To check status:           systemctl status hailo-daemon pi-ai-hat-web"
-echo "To tail logs:              journalctl -fu hailo-daemon -fu pi-ai-hat-web"
+if [ ! -e /dev/hailo0 ]; then
+  echo "ACTION REQUIRED: The Hailo driver was just installed."
+  echo "Reboot to load the kernel module, then the services will start automatically:"
+  echo "  sudo reboot"
+else
+  echo "Services are enabled and will start automatically on every boot."
+  echo "To start them right now:   sudo bash $SCRIPT_DIR/start.sh"
+fi
+echo ""
+echo "To check status:  systemctl status hailo-daemon pi-ai-hat-web"
+echo "To tail logs:     journalctl -fu hailo-daemon -fu pi-ai-hat-web"

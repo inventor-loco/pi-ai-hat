@@ -49,25 +49,16 @@ wget https://hailo-model-zoo.s3.eu-west-2.amazonaws.com/ModelZoo/Compiled/v2.15.
 
 If you are using the full Hailo-8 (not the 8L), swap `hailo8l` for `hailo8` in the URL.
 
-### 2. Run the install script (twice — a reboot is required in the middle)
+### 2. Run the install script
 
-`install.sh` handles everything: kernel headers, Hailo driver, Python venv, SSL certificate, Wi-Fi hotspot, and systemd autostart.
-
-**First run** — installs the Hailo driver and prompts for a reboot:
+`install.sh` handles everything in one shot: kernel headers, Hailo driver, Python venv, SSL certificate, Wi-Fi hotspot, and systemd autostart.
 
 ```bash
 sudo bash install.sh
 sudo reboot
 ```
 
-**Second run** — completes the setup after the driver is loaded:
-
-```bash
-cd pi-ai-hat
-sudo bash install.sh
-```
-
-That's it. Both services come up automatically on every subsequent boot.
+After the reboot both services start automatically. Done.
 
 > **If `/dev/hailo0` never appears after reboot:** recheck the HAT seating on the PCIe connector and confirm PCIe is enabled in `/boot/firmware/config.txt` (`dtparam=pciex1`). Then run `sudo modprobe hailo_pci && ls /dev/hailo*` to verify.
 
