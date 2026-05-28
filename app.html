@@ -85,6 +85,7 @@
             <h3>&#9881; Network Settings</h3>
 
             <div id="netBadge" class="net-badge unknown">Checking...</div>
+            <div id="netIpInfo" style="font-size:12px;color:#888;margin-top:-12px;margin-bottom:14px;"></div>
 
             <!-- Shown in hotspot mode -->
             <div id="wifiSection">
@@ -287,6 +288,7 @@
         // --- Settings panel ---
         const overlay      = document.getElementById('settingsOverlay');
         const netBadge     = document.getElementById('netBadge');
+        const netIpInfo    = document.getElementById('netIpInfo');
         const wifiSection  = document.getElementById('wifiSection');
         const hotspotSection = document.getElementById('hotspotSection');
         const settingsMsg  = document.getElementById('settingsMsg');
@@ -307,11 +309,13 @@
             settingsMsg.innerHTML = '';
             netBadge.className = 'net-badge unknown';
             netBadge.textContent = 'Checking…';
+            netIpInfo.textContent = '';
             wifiSection.style.display  = 'none';
             hotspotSection.style.display = 'none';
 
             try {
                 const data = await fetch('/network-status').then(r => r.json());
+                netIpInfo.textContent = data.client_ip ? `Your IP: ${data.client_ip}` : '';
                 if (data.mode === 'hotspot') {
                     netBadge.className   = 'net-badge hotspot';
                     netBadge.textContent = '📡 Hotspot active (Hailo AI Cam)';

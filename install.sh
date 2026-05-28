@@ -62,8 +62,9 @@ mkdir -p "$SCRIPT_DIR/models"
 # ---------------------------------------------------------------------------
 # 5. Wi-Fi hotspot (NetworkManager captive portal AP)
 # ---------------------------------------------------------------------------
-echo "[5/6] Configuring Wi-Fi hotspot..."
-bash "$SCRIPT_DIR/setup_hotspot.sh"
+# Hotspot disabled for development — using known IPs on an external hotspot.
+# echo "[5/6] Configuring Wi-Fi hotspot..."
+# bash "$SCRIPT_DIR/setup_hotspot.sh"
 
 # ---------------------------------------------------------------------------
 # 6. Systemd service units
@@ -90,31 +91,31 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-# pi-ai-hat-hotspot — one-shot service that activates the AP once at boot.
-# Type=oneshot + RemainAfterExit=yes means it runs once and is never re-triggered
-# by web service restarts, preventing the on/off loop.
-cat > /etc/systemd/system/pi-ai-hat-hotspot.service <<EOF
-[Unit]
-Description=pi-ai-hat Wi-Fi Hotspot
-After=NetworkManager.service
-Wants=NetworkManager.service
+# Hotspot service disabled for development.
+# if false; then
+# cat > /etc/systemd/system/pi-ai-hat-hotspot.service <<EOF
+# [Unit]
+# Description=pi-ai-hat Wi-Fi Hotspot
+# After=NetworkManager.service
+# Wants=NetworkManager.service
+#
+# [Service]
+# Type=oneshot
+# RemainAfterExit=yes
+# ExecStart=/usr/bin/nmcli connection modify "Hailo AI Cam" connection.autoconnect yes
+# ExecStart=/usr/bin/nmcli connection up "Hailo AI Cam"
+#
+# [Install]
+# WantedBy=multi-user.target
+# EOF
+# fi
 
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-ExecStart=/usr/bin/nmcli connection modify "Hailo AI Cam" connection.autoconnect yes
-ExecStart=/usr/bin/nmcli connection up "Hailo AI Cam"
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# pi-ai-hat-web — FastAPI server, depends on the daemon and hotspot being up
+# pi-ai-hat-web — FastAPI server, depends on the daemon
 cat > /etc/systemd/system/pi-ai-hat-web.service <<EOF
 [Unit]
 Description=pi-ai-hat Web Server
-After=network.target hailo-daemon.service pi-ai-hat-hotspot.service
-Wants=hailo-daemon.service pi-ai-hat-hotspot.service
+After=network.target hailo-daemon.service
+Wants=hailo-daemon.service
 
 [Service]
 Type=simple
@@ -131,7 +132,7 @@ WantedBy=multi-user.target
 EOF
 
 systemctl daemon-reload
-systemctl enable hailo-daemon.service pi-ai-hat-hotspot.service pi-ai-hat-web.service
+systemctl enable hailo-daemon.service pi-ai-hat-web.service
 
 echo ""
 echo "=== Install complete ==="

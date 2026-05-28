@@ -59,8 +59,9 @@ async def process_frame(file: UploadFile = File(...), model: str = Form(None)):
             return {"status": "error", "message": f"Proxy crash: {str(e)}"}
 
 @app.get("/network-status")
-async def network_status():
+async def network_status(request: Request):
     hostname = socket.gethostname()
+    client_ip = request.client.host if request.client else None
     try:
         result = subprocess.run(
             ["nmcli", "-t", "-f", "NAME", "connection", "show", "--active"],
@@ -70,7 +71,7 @@ async def network_status():
         mode = "hotspot" if hotspot_active else "wifi"
     except Exception:
         mode = "unknown"
-    return {"mode": mode, "hostname": hostname}
+    return {"mode": mode, "hostname": hostname, "client_ip": client_ip}
 
 
 @app.post("/configure-wifi")

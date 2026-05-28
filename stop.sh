@@ -26,7 +26,8 @@ fi
 pkill -f "hailo_daemon.py" 2>/dev/null && echo "  Killed stale hailo_daemon.py." || true
 pkill -f "server.py"       2>/dev/null && echo "  Killed stale server.py."       || true
 
-echo "Stopping hotspot..."
-nmcli connection down "Hailo AI Cam" 2>/dev/null && echo "  Hotspot down." || echo "  Hotspot was not active."
+# Hotspot disabled for development — using known IPs on an external hotspot.
+# echo "Stopping hotspot..."
+# nmcli connection down "Hailo AI Cam" 2>/dev/null && echo "  Hotspot down." || echo "  Hotspot was not active."
 
 echo "Done."
