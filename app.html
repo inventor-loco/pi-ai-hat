@@ -10,7 +10,8 @@
         select { padding: 10px; font-size: 16px; background: #222; color: #fff; border: 1px solid #555; border-radius: 4px; margin-bottom: 20px; cursor: pointer; max-width: 400px; }
         .panels { display: flex; justify-content: center; align-items: center; gap: 20px; flex-wrap: wrap; }
         .panel { display: flex; flex-direction: column; align-items: center; }
-        video, canvas { border-radius: 8px; border: 2px solid #333; background: #000; transform: scaleX(-1); max-width: 100%; height: auto; }
+        video, canvas { border-radius: 8px; border: 2px solid #333; background: #000; max-width: 100%; max-height: 38vh; width: auto; height: auto; }
+        .flipped { transform: scaleX(-1); }
         button { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #00ff88; color: #000; border: none; border-radius: 8px; font-weight: bold; transition: 0.2s; }
         button:active { transform: scale(0.95); }
         button:disabled { background: #555; cursor: not-allowed; }
@@ -114,8 +115,6 @@
         </div>
     </div>
 
-    <h2>📷 Hailo NPU Snapshot Analysis</h2>
-    
     <div class="controls">
         <label for="cameraSelect"><strong>Select Camera: </strong></label>
         <select id="cameraSelect">
@@ -214,14 +213,23 @@
                         option.text = device.label || `Camera ${index + 1}`;
                         cameraSelect.appendChild(option);
                     });
+                    updateFlip();
                 }
             } catch (err) {
                 statusText.innerText = "Webcam error: " + err;
             }
         }
 
+        function updateFlip() {
+            const label = (cameraSelect.options[cameraSelect.selectedIndex]?.text || '').toLowerCase();
+            const shouldFlip = label.includes('front') || label.includes('webcam');
+            video.classList.toggle('flipped', shouldFlip);
+            canvas.classList.toggle('flipped', shouldFlip);
+        }
+
         cameraSelect.addEventListener('change', () => {
             statusText.innerText = "Switching cameras...";
+            updateFlip();
             startCamera(cameraSelect.value);
         });
 
