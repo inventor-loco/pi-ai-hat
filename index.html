@@ -139,28 +139,61 @@
         <div class="manual-instructions">
             <b>Important:</b><br><br>
             <b>Android:</b> Tapping the button should automatically open Chrome.<br><br>
-            <b>iOS (iPhone):</b> Tapping the button will turn the "Cancel" button in the top right into a blue "Done" button. Tap "Done" to close this window, then manually open Safari and type in <b>https://hailocam.local/app.html</b> (or <b>https://10.42.0.1/app.html</b>)
+            <b>iOS (iPhone):</b> After tapping the button, tap <strong>Done</strong> in the top right to close this popup, then open <strong>Safari</strong> and go to <a id="manualUrl" href="#" style="color:#00ff88;font-weight:bold;">https://…</a>
         </div>
 
         <script>
+            const host = window.location.hostname;
+            const appUrl = `https://${host}/app.html`;
+
+            // Fill in the manual-fallback URL as soon as the page loads
+            const manualUrlEl = document.getElementById('manualUrl');
+            manualUrlEl.textContent = appUrl;
+            manualUrlEl.href = appUrl;
+
             document.getElementById('startBtn').addEventListener('click', async () => {
-                // 1. Tell the Pi to start spoofing internet success for our IP address
-                // This tricks the OS into thinking the captive portal login was successful.
-                try {
-                    await fetch('/approve');
-                } catch (e) {
-                    console.error("Failed to hit /approve", e);
-                }
-                
-                // 2. Try to force-open Android Chrome
-                const isAndroid = /Android/i.test(navigator.userAgent);
+                const btn = document.getElementById('startBtn');
+                btn.textContent = 'Connecting…';
+                btn.disabled = true;
+
+                // Whitelist this IP. The server now returns connectivity-check success to the OS,
+                // which signals that the captive portal login is complete.
+                try { await fetch('/approve'); } catch (e) {}
+
+                const ua = navigator.userAgent;
+                const isAndroid = /Android/i.test(ua);
+                const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
                 if (isAndroid) {
-                    window.location.href = "intent://hailocam.local/app.html#Intent;scheme=https;package=com.android.chrome;end";
+                    // Open Chrome directly outside the captive portal mini-browser
+                    window.location.href = `intent://${host}/app.html#Intent;scheme=https;package=com.android.chrome;end`;
+                    // Redirect the mini-browser to Android's connectivity check URL.
+                    // DNS hijacking routes it to our server → returns 204 for approved IPs → portal dismissed.
+                    setTimeout(() => {
+                        window.location.href = 'http://connectivitycheck.gstatic.com/generate_204';
+                    }, 800);
+                } else if (isIOS) {
+                    // Attempt to open in Safari directly (works on some iOS versions)
+                    window.open(appUrl, '_blank');
+                    // Replace the panel with a success state. The OS background connectivity check
+                    // will hit our server, get the Apple success response, and dismiss this popup.
+                    document.querySelector('.glass-panel').innerHTML = `
+                        <div style="font-size:3.5rem;margin-bottom:12px;">✓</div>
+                        <h2 style="color:#00ff88;margin:0 0 14px;">Access Granted</h2>
+                        <p style="color:#e2e8f0;line-height:1.6;margin-bottom:8px;">
+                            Tap <strong>Done</strong> (top right) to close this window,<br>
+                            then open <strong>Safari</strong> and go to:
+                        </p>
+                        <div style="background:#0f172a;border:1px solid rgba(0,255,136,0.3);border-radius:10px;padding:16px;margin:16px 0;word-break:break-all;">
+                            <a href="${appUrl}" style="color:#00ff88;font-size:1.05rem;font-weight:bold;text-decoration:none;">${appUrl}</a>
+                        </div>
+                        <p style="color:#94a3b8;font-size:0.82rem;line-height:1.5;">
+                            Accept the SSL warning in Safari to load the app.<br>
+                            Camera access requires a full browser — not this popup.
+                        </p>
+                    `;
                 } else {
-                    // For iOS, the 'approve' fetch just turns the "Cancel" button into "Done".
-                    // The user must tap "Done" to exit the mini-browser, then open Safari manually.
-                    // We can still try to redirect them in case they are already in a real browser.
-                    window.location.href = "https://hailocam.local/app.html";
+                    window.location.href = appUrl;
                 }
             });
         </script>
